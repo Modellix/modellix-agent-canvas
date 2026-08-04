@@ -3,6 +3,7 @@ import http from "node:http";
 
 import { PRODUCTION_API_KEY_URL } from "./modellix-contracts.mjs";
 import { asModellixCanvasError, sanitizeMessage } from "./modellix-errors.mjs";
+import { createTranslator, normalizeLanguage } from "./modellix-i18n.mjs";
 
 const SETUP_TTL_MS = 5 * 60 * 1000;
 const OPEN_TTL_MS = 5 * 60 * 1000;
@@ -34,13 +35,14 @@ export class ModellixLocalWebServer {
     return `${this.origin}/open/${token}`;
   }
 
-  async createSetupUrl() {
+  async createSetupUrl(language = "en") {
     await this.ensureListening();
+    const normalizedLanguage = normalizeLanguage(language);
     const token = secretToken();
     const expiresAtMs = Date.now() + SETUP_TTL_MS;
     this.setupTokens.set(token, expiresAtMs);
     this.prune();
-    return { ok: true, setupUrl: `${this.origin}/setup/${token}`, expiresAt: new Date(expiresAtMs).toISOString(), apiKeyPageUrl: PRODUCTION_API_KEY_URL };
+    return { ok: true, setupUrl: `${this.origin}/setup/${token}?language=${encodeURIComponent(normalizedLanguage)}`, expiresAt: new Date(expiresAtMs).toISOString(), apiKeyPageUrl: PRODUCTION_API_KEY_URL };
   }
 
   async close() {
@@ -67,7 +69,7 @@ export class ModellixLocalWebServer {
     this.securityHeaders(response);
     const url = new URL(request.url || "/", this.origin);
     if (request.headers.host !== new URL(this.origin).host) return this.send(response, 400, "Invalid Host.");
-    if (url.pathname.startsWith("/setup/")) return this.handleSetup(request, response, url.pathname.slice(7), url.searchParams.get("embedded") === "1");
+    if (url.pathname.startsWith("/setup/")) return this.handleSetup(request, response, url.pathname.slice(7), url.searchParams.get("embedded") === "1", url.searchParams.get("language"));
     if (url.pathname.startsWith("/open/")) return this.handleOpen(request, response, url.pathname.slice(6));
 
     if (!this.authorizeSession(request)) return this.send(response, 401, "Canvas session expired. Run open_modellix_canvas again.");
@@ -77,7 +79,7 @@ export class ModellixLocalWebServer {
     if (url.pathname === "/api/context" && request.method === "GET") return this.sendJson(response, 200, await this.projectStore.getContext());
     if (url.pathname === "/api/assets" && request.method === "POST") return this.sendJson(response, 200, await this.projectStore.saveAsset(await readJson(request)));
     if (url.pathname === "/api/modellix/status" && request.method === "GET") return this.sendJson(response, 200, await this.service.status({ refresh: url.searchParams.get("refresh") === "1" }));
-    if (url.pathname === "/api/modellix/setup" && request.method === "POST") return this.sendJson(response, 200, await this.createSetupUrl());
+    if (url.pathname === "/api/modellix/setup" && request.method === "POST") return this.sendJson(response, 200, await this.createSetupUrl(url.searchParams.get("language")));
     if (url.pathname === "/api/modellix/prepare" && request.method === "POST") return this.sendJson(response, 200, await this.service.prepare(await readJson(request)));
     if (url.pathname === "/api/modellix/submit" && request.method === "POST") return this.sendJson(response, 200, await this.service.submit(await readJson(request)));
     if (url.pathname === "/api/modellix/task" && request.method === "GET") return this.sendJson(response, 200, await this.service.getTask(url.searchParams.get("taskId")));
@@ -101,23 +103,25 @@ export class ModellixLocalWebServer {
     return this.send(response, 405, "Method not allowed.");
   }
 
-  async handleSetup(request, response, token, embedded = false) {
+  async handleSetup(request, response, token, embedded = false, language = "en") {
+    const normalizedLanguage = normalizeLanguage(language);
+    const t = createTranslator(normalizedLanguage);
     const expiresAt = this.setupTokens.get(token);
     if (!expiresAt || expiresAt <= Date.now()) return this.send(response, 410, "This setup link has expired.");
-    if (request.method === "GET") return this.sendSetupHtml(response, setupHtml(token, { embedded }));
+    if (request.method === "GET") return this.sendSetupHtml(response, setupHtml(token, { embedded, language: normalizedLanguage }));
     if (request.method !== "POST") return this.send(response, 405, "Method not allowed.");
     this.assertSameOrigin(request, { required: true, allowOpaque: true });
     assertContentType(request, "application/x-www-form-urlencoded");
     const body = await readForm(request, 64 * 1024);
     const apiKey = String(body.get("apiKey") || "").trim();
-    if (!apiKey) return this.sendSetupHtml(response, setupHtml(token, { embedded, error: "请输入 API Key。" }));
+    if (!apiKey) return this.sendSetupHtml(response, setupHtml(token, { embedded, language: normalizedLanguage, error: t("setup.required") }));
     try {
       await this.cli.loginWithStdin(apiKey);
     } catch (error) {
-      return this.sendSetupHtml(response, setupHtml(token, { embedded, error: setupErrorMessage(error) }));
+      return this.sendSetupHtml(response, setupHtml(token, { embedded, language: normalizedLanguage, error: setupErrorMessage(error, normalizedLanguage) }));
     }
     this.setupTokens.delete(token);
-    return this.sendSetupHtml(response, successHtml(embedded));
+    return this.sendSetupHtml(response, successHtml(embedded, normalizedLanguage));
   }
 
   async handleOpen(request, response, token) {
@@ -233,25 +237,32 @@ function readBody(request, limit) {
   });
 }
 
-function setupHtml(token, { embedded = false, error = "" } = {}) {
+function setupHtml(token, { embedded = false, error = "", language = "en" } = {}) {
+  const normalizedLanguage = normalizeLanguage(language);
+  const t = createTranslator(normalizedLanguage);
   const bodyClass = embedded ? "embedded" : "standalone";
-  const action = `/setup/${token}${embedded ? "?embedded=1" : ""}`;
+  const query = new URLSearchParams({ language: normalizedLanguage });
+  if (embedded) query.set("embedded", "1");
+  const action = `/setup/${token}?${query}`;
   const errorHtml = error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : "";
-  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>配置 Modellix API Key</title><style>:root{font-family:Inter,system-ui;color:#19191d;background:#f7f8fa;color-scheme:light}*{box-sizing:border-box}body{max-width:620px;margin:9vh auto;padding:28px}main{padding:28px;border:1px solid #e7e7ec;border-radius:20px;background:#fff;box-shadow:0 22px 70px rgba(25,25,29,.1)}h1{margin:0 0 8px;font-size:23px}p{margin:0 0 12px}form{display:grid;gap:10px}label{display:grid;gap:6px;font-size:12px;font-weight:700}input,button{width:100%;font:inherit;padding:11px;border-radius:9px}input{border:1px solid #d8d8df;outline:0}input:focus{border-color:#605aff;box-shadow:0 0 0 3px rgba(96,90,255,.13)}button{border:0;color:#fff;background:#605aff;font-weight:700;cursor:pointer}small,p{color:#686974;line-height:1.5}a{color:#4b45d6}.meta{display:flex;align-items:center;justify-content:space-between;gap:8px}.error{padding:8px;border-radius:8px;color:#b42318;background:#fff0ee;font-size:12px}.embedded{max-width:none;margin:0;padding:0;background:#fff}.embedded main{padding:10px;border:0;border-radius:0;box-shadow:none}.embedded h1{font-size:13px;margin-bottom:3px}.embedded .intro{display:none}.embedded form{gap:7px}.embedded input,.embedded button{padding:9px;font-size:12px}.embedded .meta{font-size:10px}.embedded small{font-size:9px}</style><body class="${bodyClass}"><main><h1>安全配置 API Key</h1><p class="intro">Key 由随插件提供的 CLI 验证并保存到系统凭证库，不进入工具参数、URL、画布或日志。</p>${errorHtml}<form method="post" action="${action}" autocomplete="off"><label>Modellix API Key<input name="apiKey" type="password" required autocomplete="new-password" spellcheck="false" placeholder="输入可用的 API Key" autofocus></label><button type="submit">保存并验证</button><div class="meta"><a href="${PRODUCTION_API_KEY_URL}" target="_blank" rel="noreferrer">创建 API Key</a><small>5 分钟内有效</small></div></form></main></body></html>`;
+  return `<!doctype html><html lang="${normalizedLanguage}"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(t("setup.title"))}</title><style>:root{font-family:Inter,system-ui;color:#19191d;background:#f7f8fa;color-scheme:light}*{box-sizing:border-box}body{max-width:620px;margin:9vh auto;padding:28px}main{padding:28px;border:1px solid #e7e7ec;border-radius:20px;background:#fff;box-shadow:0 22px 70px rgba(25,25,29,.1)}h1{margin:0 0 8px;font-size:23px}p{margin:0 0 12px}form{display:grid;gap:10px}label{display:grid;gap:6px;font-size:12px;font-weight:700}input,button{width:100%;font:inherit;padding:11px;border-radius:9px}input{border:1px solid #d8d8df;outline:0}input:focus{border-color:#605aff;box-shadow:0 0 0 3px rgba(96,90,255,.13)}button{border:0;color:#fff;background:#605aff;font-weight:700;cursor:pointer}small,p{color:#686974;line-height:1.5}a{color:#4b45d6}.meta{display:flex;align-items:center;justify-content:space-between;gap:8px}.error{padding:8px;border-radius:8px;color:#b42318;background:#fff0ee;font-size:12px}.embedded{max-width:none;margin:0;padding:0;background:#fff}.embedded main{padding:10px;border:0;border-radius:0;box-shadow:none}.embedded h1{font-size:13px;margin-bottom:3px}.embedded .intro{display:none}.embedded form{gap:7px}.embedded input,.embedded button{padding:9px;font-size:12px}.embedded .meta{font-size:10px}.embedded small{font-size:9px}</style><body class="${bodyClass}"><main><h1>${escapeHtml(t("setup.heading"))}</h1><p class="intro">${escapeHtml(t("setup.description"))}</p>${errorHtml}<form method="post" action="${action}" autocomplete="off"><label>Modellix API Key<input name="apiKey" type="password" required autocomplete="new-password" spellcheck="false" placeholder="${escapeHtml(t("setup.placeholder"))}" autofocus></label><button type="submit">${escapeHtml(t("setup.submit"))}</button><div class="meta"><a href="${PRODUCTION_API_KEY_URL}" target="_blank" rel="noreferrer">${escapeHtml(t("setup.create"))}</a><small>${escapeHtml(t("setup.expires"))}</small></div></form></main></body></html>`;
 }
 
-function successHtml(embedded = false) {
+function successHtml(embedded = false, language = "en") {
+  const normalizedLanguage = normalizeLanguage(language);
+  const t = createTranslator(normalizedLanguage);
   const compact = embedded ? "body{margin:0;padding:18px;font-size:13px}h1{font-size:16px}" : "body{max-width:560px;margin:12vh auto;padding:24px}";
-  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>配置完成</title><style>body{font:16px/1.55 system-ui;color:#19191d;text-align:center}${compact}h1{color:#16794b}</style><h1>配置完成</h1><p>API Key 已验证并安全保存，Canvas 正在自动刷新状态。</p></html>`;
+  return `<!doctype html><html lang="${normalizedLanguage}"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(t("setup.successTitle"))}</title><style>body{font:16px/1.55 system-ui;color:#19191d;text-align:center}${compact}h1{color:#16794b}</style><h1>${escapeHtml(t("setup.successHeading"))}</h1><p>${escapeHtml(t("setup.successBody"))}</p></html>`;
 }
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/gu, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function setupErrorMessage(error) {
+function setupErrorMessage(error, language = "en") {
+  const t = createTranslator(language);
   const message = sanitizeMessage(error?.message);
-  if (/invalid|inactive|unauthorized|authentication failed/iu.test(message)) return "API Key 无效或已停用，请检查后重新输入。";
-  if (/timed?\s*out|timeout|network|fetch failed|connection/iu.test(message)) return "暂时无法连接 Modellix，请检查网络后重试。";
+  if (/invalid|inactive|unauthorized|authentication failed/iu.test(message)) return t("setup.invalid");
+  if (/timed?\s*out|timeout|network|fetch failed|connection/iu.test(message)) return t("setup.network");
   return message;
 }

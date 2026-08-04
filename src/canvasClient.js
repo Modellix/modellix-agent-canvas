@@ -1,3 +1,5 @@
+import { normalizeLanguage } from '../mcp/lib/modellix-i18n.mjs'
+
 const ENDPOINTS = {
   project: '/api/project',
   context: '/api/context',
@@ -118,8 +120,11 @@ export async function getCanvasStatus(refresh = false) {
     : fetchJson(`${ENDPOINTS.status}?refresh=${refresh ? '1' : '0'}`)
 }
 
-export async function startApiKeySetup() {
-  return hasMcpBridge() ? callTool(TOOLS.setup) : fetchJson(ENDPOINTS.setup, { method: 'POST' })
+export async function startApiKeySetup(language = 'en') {
+  const normalizedLanguage = normalizeLanguage(language)
+  return hasMcpBridge()
+    ? callTool(TOOLS.setup, { language: normalizedLanguage })
+    : fetchJson(`${ENDPOINTS.setup}?language=${encodeURIComponent(normalizedLanguage)}`, { method: 'POST' })
 }
 
 export async function prepareImageTask(intent) {

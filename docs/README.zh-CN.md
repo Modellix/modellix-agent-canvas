@@ -40,6 +40,7 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 - HTML 草稿：源码编辑、CSP 沙箱预览、刷新、画布截图和源码 ZIP 导出。
 - 演示文稿：16:9、4:3、自定义比例，标题/内容/图片/对比/空白模板，新增、复制、重命名、删除、排序、缩略图、播放和 PNG 序列导出。
 - 导出：选择区或页面 PNG/SVG、演示文稿 PNG ZIP、项目 JSON 备份。
+- 中英日三语界面：默认英语；右上角语言切换会同步更新 Canvas、Excalidraw 控件和 API Key 安全输入表单，并随项目持久化。
 - 安全持久化：API Key 复用 `modellix-cli` 的系统凭证库，不写入聊天、MCP 参数、URL、项目或任务账本。
 
 ## 运行要求
@@ -75,7 +76,7 @@ get_modellix_canvas_status { "refresh": true, "workspacePath": "<当前项目绝
 open_modellix_canvas { "workspacePath": "<同一当前项目绝对路径>" }
 ```
 
-如果状态为 `missing` 或 `invalid`，Canvas 会在凭证卡片中直接显示密码输入框。它实际是隔离的本机一次性表单，5 分钟后失效；提交后由内置 CLI 验证、写入系统凭证库并自动刷新状态。Key 不会进入 Canvas 状态或 MCP 工具参数。`start_modellix_api_key_setup` 仍供需要显式取得同一安全表单的集成使用。
+如果状态为 `missing` 或 `invalid`，Canvas 会在凭证卡片中直接显示密码输入框。输入框跟随右上角选择的语言；它实际是隔离的本机一次性表单，5 分钟后失效。提交后由内置 CLI 验证、写入系统凭证库并自动刷新状态。Key 不会进入 Canvas 状态或 MCP 工具参数。`start_modellix_api_key_setup` 仍供需要显式取得同一安全表单的集成使用。
 
 ## 宿主配置
 
@@ -101,7 +102,7 @@ codex plugin add modellix-agent-canvas@modellix
 
 ### Cursor
 
-Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。所有入口都通过 `npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
+Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。所有入口都通过 `npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
 
 ### Claude Code
 
@@ -120,7 +121,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-把 `adapters/opencode/opencode.json` 中的 `mcp.servers.modellix-agent-canvas` 合并到项目配置。该配置通过 `npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas` 启动。OpenCode 会从工作区启动 local MCP command，并把工具名规范化为 `<server>_<tool>`。默认使用本地网页回退；`cwd` 保持为当前工作区。
+把 `adapters/opencode/opencode.json` 中的 `mcp.servers.modellix-agent-canvas` 合并到项目配置。该配置通过 `npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas` 启动。OpenCode 会从工作区启动 local MCP command，并把工具名规范化为 `<server>_<tool>`。默认使用本地网页回退；`cwd` 保持为当前工作区。
 
 更完整的配置边界与验证状态见 [宿主兼容说明](host-compatibility.md)。
 

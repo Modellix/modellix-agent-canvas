@@ -134,10 +134,10 @@ export function registerModellixTools(server, options) {
   register(server, "start_modellix_api_key_setup", {
     title: "Start Modellix API Key Setup",
     description: `Create a short-lived loopback form that validates and stores a Modellix API key through the installed CLI dependency. Create a production key at ${PRODUCTION_API_KEY_URL}. The key is never a tool argument.`,
-    inputSchema: {},
+    inputSchema: { language: z.enum(["en", "zh-CN", "ja-JP"]).optional() },
     outputSchema: { ok: z.boolean(), setupUrl: z.string().url(), expiresAt: z.string(), apiKeyPageUrl: z.string().url() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, () => localWeb.createSetupUrl());
+  }, (input) => localWeb.createSetupUrl(input.language));
 
   registerAppTool(server, "open_modellix_canvas", {
     title: "Open Modellix Agent Canvas",

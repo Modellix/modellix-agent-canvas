@@ -83,7 +83,7 @@ button { color: inherit; }
 .header-actions { gap: 7px; }
 .history-actions { display: flex; gap: 2px; }
 
-button, .credential-pill, .primary-button, .secondary-button {
+button, .primary-button, .secondary-button {
   border: 0;
   border-radius: 9px;
   cursor: pointer;
@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 button:disabled { cursor: not-allowed; opacity: .5; }
 .icon-button { display: inline-grid; width: 40px; height: 40px; place-items: center; background: transparent; }
 .icon-button:hover { background: var(--panel-soft); }
-.primary-button, .secondary-button, .credential-pill {
+.primary-button, .secondary-button {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
@@ -112,7 +112,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .secondary-button:hover:not(:disabled) { border-color: var(--line-strong); background: var(--panel-soft); }
 .grow { flex: 1; }
 
-.save-indicator, .credential-pill {
+.save-indicator {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -121,9 +121,25 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .save-indicator { color: var(--muted); font-size: 11px; }
 .save-indicator.state-error { color: var(--danger); }
 .save-indicator.state-dirty { color: var(--warning); }
-.credential-pill { color: var(--muted); background: var(--panel-soft); }
-.credential-pill.state-valid { color: var(--success); background: color-mix(in srgb, var(--success) 11%, var(--panel-solid)); }
-.credential-pill.state-invalid { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--panel-solid)); }
+.language-switch {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px 0 10px;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--panel-soft);
+}
+.language-switch select {
+  max-width: 108px;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
 
 .workspace { display: grid; min-height: 0; grid-template-columns: 64px minmax(0, 1fr) auto; }
 .quick-rail {
@@ -395,7 +411,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 
 @media (max-width: 900px) {
   .modellix-app { grid-template-rows: 54px minmax(0, 1fr) 46px; }
-  .brand-block span, .save-indicator, .credential-pill { display: none; }
+  .brand-block span, .save-indicator { display: none; }
   .workspace { grid-template-columns: 54px minmax(0, 1fr) auto; }
   .quick-rail { padding-inline: 3px; }
   .quick-rail button { width: 44px; }
@@ -406,6 +422,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .app-header { padding-left: 10px; }
   .brand-block strong { font-size: 12px; }
   .header-actions > .primary-button { width: 34px; padding: 0; font-size: 0; }
+  .language-switch { padding-inline: 7px; }
+  .language-switch select { width: 38px; }
   .workspace { grid-template-columns: 50px minmax(0, 1fr); }
   .quick-rail { grid-column: 1; }
   .canvas-stage { grid-column: 2; }

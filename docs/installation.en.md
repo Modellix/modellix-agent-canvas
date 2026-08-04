@@ -5,7 +5,7 @@ Modellix Agent Canvas is a local `stdio` MCP plugin and does not require a deplo
 To diagnose Node.js, runtime dependencies, the bundled Widget, and package version on any host, run:
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --doctor
+npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas --doctor
 ```
 
 ## Requirements
@@ -15,7 +15,7 @@ npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --doctor
 - Access to `https://api.modellix.ai` and `https://registry.npmjs.org`
 - A valid [Modellix API Key](https://www.modellix.ai/console/api-key)
 
-Never place the API Key in an MCP configuration. Configure it in the isolated credential field embedded directly in Canvas after the first connection.
+Never place the API Key in an MCP configuration. Configure it in the isolated credential field embedded directly in Canvas after the first connection. Canvas defaults to English; the upper-right language switch changes English, Simplified Chinese, or Japanese and also localizes this credential field.
 
 ## Codex
 
@@ -40,7 +40,7 @@ For a personal Marketplace from GitHub or a local checkout, open **Customize →
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -70,7 +70,7 @@ Merge this server into the project's `opencode.json`:
     "servers": {
       "modellix-agent-canvas": {
         "type": "local",
-        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
         "cwd": "."
       }
     }
@@ -87,7 +87,7 @@ Configure the host to run:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
+  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
 }
 ```
 

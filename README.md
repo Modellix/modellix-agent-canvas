@@ -40,6 +40,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 - **HTML drafts:** source editing, CSP-restricted sandbox preview, refresh, canvas capture, and source ZIP export.
 - **Presentations:** 16:9, 4:3, and custom ratios; title, content, image, comparison, and blank layouts; thumbnails, reordering, duplication, presentation mode, and PNG-sequence export.
 - **Import and export:** selected area or full-page PNG/SVG, presentation PNG ZIP, and project JSON backup.
+- **English, Chinese, and Japanese UI:** English is the default. The language switch in the upper-right updates the Canvas, Excalidraw controls, and secure API Key form, and the choice is saved with the project.
 - **Local security:** credentials use the `modellix-cli` system credential store and are never written to chat, MCP arguments, URLs, project files, or task ledgers.
 
 ## Requirements
@@ -50,7 +51,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 
 Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Run `npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
+Run `npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
 
 ## Quick start
 
@@ -95,7 +96,7 @@ get_modellix_canvas_status { "refresh": true, "workspacePath": "<absolute projec
 open_modellix_canvas { "workspacePath": "<the same absolute project path>" }
 ```
 
-If status is `missing` or `invalid`, Canvas displays a password input directly in its credential card. The field is an isolated, one-time loopback form that expires after five minutes; submitting it validates the key through the bundled CLI, stores it in the system credential store, and automatically refreshes Canvas status. The Key never enters Canvas state or MCP tool arguments. `start_modellix_api_key_setup` remains available to integrations that need to obtain the same short-lived local form explicitly.
+If status is `missing` or `invalid`, Canvas displays a password input directly in its credential card. The field follows the language selected in the upper-right and is an isolated, one-time loopback form that expires after five minutes; submitting it validates the key through the bundled CLI, stores it in the system credential store, and automatically refreshes Canvas status. The Key never enters Canvas state or MCP tool arguments. `start_modellix_api_key_setup` remains available to integrations that need to obtain the same short-lived local form explicitly.
 
 ## Host compatibility
 
@@ -113,7 +114,7 @@ Use the adapter intended for the target host. The root `.mcp.json` and `.plugin/
 The root `mcp.json` runs:
 
 ```text
-npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --host cursor --supports-mcp-apps true
+npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas --host cursor --supports-mcp-apps true
 ```
 
 The template does not contain an API Key. Cursor supplies the active workspace through MCP Roots; the template intentionally avoids unportable `${workspaceFolder}` interpolation.
@@ -126,7 +127,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-Merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. It starts `@modellix/agent-canvas@0.1.9` from the active workspace and uses the local page fallback.
+Merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. It starts `@modellix/agent-canvas@0.1.10` from the active workspace and uses the local page fallback.
 
 ## API Key and privacy
 

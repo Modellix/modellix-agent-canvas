@@ -1,9 +1,10 @@
 import { convertToExcalidrawElements } from '@excalidraw/excalidraw'
+import { translate } from '../mcp/lib/modellix-i18n.mjs'
 
 const BRAND = '#605AFF'
 const INK = '#19191D'
 
-export function createImageHolder({ x = 120, y = 120, width = 512, height = 512, ratio = '1:1' } = {}) {
+export function createImageHolder({ x = 120, y = 120, width = 512, height = 512, ratio = '1:1', language = 'en' } = {}) {
   const objectId = modelId('obj')
   const groupId = modelId('group')
   const skeleton = [
@@ -27,7 +28,7 @@ export function createImageHolder({ x = 120, y = 120, width = 512, height = 512,
     {
       id: modelId('label'),
       type: 'text',
-      text: `AI 图片 · ${ratio}`,
+      text: translate(language, 'canvas.imageHolder', { ratio }),
       x: x + 24,
       y: y + height / 2 - 14,
       width: Math.max(120, width - 48),
@@ -45,7 +46,7 @@ export function createImageHolder({ x = 120, y = 120, width = 512, height = 512,
   return { objectId, elements: convert(skeleton) }
 }
 
-export function createHtmlDraft({ x = 120, y = 120, width = 960, height = 540, title = 'HTML Draft' } = {}) {
+export function createHtmlDraft({ x = 120, y = 120, width = 960, height = 540, title = 'HTML Draft', language = 'en' } = {}) {
   const objectId = modelId('obj')
   const groupId = modelId('group')
   const skeleton = [
@@ -64,7 +65,7 @@ export function createHtmlDraft({ x = 120, y = 120, width = 960, height = 540, t
     },
     {
       id: modelId('html_hint'),
-      type: 'text', text: '在右侧面板编辑并安全预览 HTML', x: x + 24, y: y + 76, width: width - 48, height: 28,
+      type: 'text', text: translate(language, 'canvas.htmlHint'), x: x + 24, y: y + 76, width: width - 48, height: 28,
       fontSize: 16, fontFamily: 2, strokeColor: '#68686B', roughness: 0, groupIds: [groupId],
       customData: { modellix: { schemaVersion: 1, kind: 'html-hint', objectId } }
     }
@@ -72,14 +73,8 @@ export function createHtmlDraft({ x = 120, y = 120, width = 960, height = 540, t
   return { objectId, elements: convert(skeleton) }
 }
 
-export const SLIDE_TEMPLATE_OPTIONS = [
-  ['starter', '入门组合'],
-  ['title', '标题'],
-  ['title-content', '标题 + 内容'],
-  ['image', '图片重点'],
-  ['comparison', '双栏对比'],
-  ['blank', '空白']
-]
+export const SLIDE_TEMPLATE_IDS = ['starter', 'title', 'title-content', 'image', 'comparison', 'blank']
+export function slideTemplateOptions(language = 'en') { return SLIDE_TEMPLATE_IDS.map(value => [value, translate(language, `template.${value}`)]) }
 
 export function slideDimensions({ ratio = '16:9', customWidth = 1600, customHeight = 900 } = {}) {
   const width = 960
@@ -92,7 +87,7 @@ export function slideDimensions({ ratio = '16:9', customWidth = 1600, customHeig
   return { width, height: 540 }
 }
 
-export function createSlideDeck({ x = 120, y = 120, count = 5, ratio = '16:9', customWidth = 1600, customHeight = 900, template = 'starter', title = 'Untitled Deck' } = {}) {
+export function createSlideDeck({ x = 120, y = 120, count = 5, ratio = '16:9', customWidth = 1600, customHeight = 900, template = 'starter', title = 'Untitled Deck', language = 'en' } = {}) {
   const deckId = modelId('deck')
   const { width: frameWidth, height: frameHeight } = slideDimensions({ ratio, customWidth, customHeight })
   const elements = []
@@ -100,19 +95,19 @@ export function createSlideDeck({ x = 120, y = 120, count = 5, ratio = '16:9', c
   for (let index = 0; index < count; index += 1) {
     const frameX = x + index * (frameWidth + 80)
     const slideTemplate = index === 0 ? 'title' : template === 'starter' ? ['title-content', 'image', 'comparison', 'blank'][(index - 1) % 4] : template
-    const result = createSlideForDeck({ deckId, x: frameX, y, order: index, ratio, customWidth, customHeight, template: slideTemplate, title: index === 0 ? title : `Slide ${index + 1}` })
+    const result = createSlideForDeck({ deckId, x: frameX, y, order: index, ratio, customWidth, customHeight, template: slideTemplate, title: index === 0 ? title : translate(language, 'canvas.slideName', { number: index + 1 }), language })
     elements.push(...result.elements)
     slides.push(result.slide)
   }
   return { deckId, elements, deck: { id: deckId, title, ratio, customWidth, customHeight, defaultTemplate: template, slides, revision: 1 } }
 }
 
-export function createSlideForDeck({ deckId, x = 120, y = 120, order = 0, ratio = '16:9', customWidth = 1600, customHeight = 900, template = 'title-content', title } = {}) {
+export function createSlideForDeck({ deckId, x = 120, y = 120, order = 0, ratio = '16:9', customWidth = 1600, customHeight = 900, template = 'title-content', title, language = 'en' } = {}) {
   const { width: frameWidth, height: frameHeight } = slideDimensions({ ratio, customWidth, customHeight })
   const frameId = modelId('slide')
   const objectId = modelId('obj')
-  const slideTitle = title || `Slide ${order + 1}`
-  const childSkeleton = slideTemplate({ template, title: slideTitle, x, y, width: frameWidth, height: frameHeight, frameId, objectId, deckId, order })
+  const slideTitle = title || translate(language, 'canvas.slideName', { number: order + 1 })
+  const childSkeleton = slideTemplate({ template, title: slideTitle, x, y, width: frameWidth, height: frameHeight, frameId, objectId, deckId, order, language })
   const frameSkeleton = { id: frameId, type: 'frame', x, y, width: frameWidth, height: frameHeight, name: slideTitle, children: childSkeleton.map(item => item.id), strokeColor: '#D7D6E0', backgroundColor: '#FFFFFF', roughness: 0, customData: { modellix: { schemaVersion: 1, kind: 'slide', objectId, deckId, order, ratio, template } } }
   // Convert the frame and its children together. Excalidraw resolves frameId/children
   // relationships while converting; separate calls leave the generated ids unmapped.
@@ -120,9 +115,10 @@ export function createSlideForDeck({ deckId, x = 120, y = 120, order = 0, ratio 
   return { elements, slide: { id: frameId, objectId, name: slideTitle, order, template } }
 }
 
-export function duplicateSlideForDeck({ deckId, slide, elements, x, y, order, ratio = '16:9', customWidth = 1600, customHeight = 900 } = {}) {
+export function duplicateSlideForDeck({ deckId, slide, elements, x, y, order, ratio = '16:9', customWidth = 1600, customHeight = 900, language = 'en' } = {}) {
   const sourceFrame = elements.find(element => element.id === slide.id)
-  if (!sourceFrame) return createSlideForDeck({ deckId, x, y, order, ratio, customWidth, customHeight, template: slide.template, title: `${slide.name} 副本` })
+  const copyName = `${slide.name} ${translate(language, 'pages.copySuffix')}`
+  if (!sourceFrame) return createSlideForDeck({ deckId, x, y, order, ratio, customWidth, customHeight, template: slide.template, title: copyName, language })
   const sourceChildren = elements.filter(element => element.frameId === sourceFrame.id)
   const frameId = modelId('slide')
   const objectId = modelId('obj')
@@ -149,7 +145,7 @@ export function duplicateSlideForDeck({ deckId, slide, elements, x, y, order, ra
     id: frameId,
     x,
     y,
-    name: `${slide.name} 副本`,
+    name: copyName,
     children: children.map(item => item.id),
     seed: randomInt(),
     version: 1,
@@ -160,7 +156,7 @@ export function duplicateSlideForDeck({ deckId, slide, elements, x, y, order, ra
   return { elements: [frame, ...children], slide: { id: frameId, objectId, name: frame.name, order, template: slide.template || sourceFrame.customData?.modellix?.template || 'title-content' } }
 }
 
-function slideTemplate({ template, title, x, y, width, height, frameId, objectId, deckId, order }) {
+function slideTemplate({ template, title, x, y, width, height, frameId, objectId, deckId, order, language }) {
   const meta = { customData: { modellix: { schemaVersion: 1, kind: 'slide-content', objectId, deckId, order } }, frameId, roughness: 0 }
   const text = (id, value, left, top, textWidth, fontSize, color = INK, align = 'left') => ({
     id: modelId(id), type: 'text', text: value, x: left, y: top, width: textWidth, height: Math.ceil(fontSize * 1.5),
@@ -173,12 +169,12 @@ function slideTemplate({ template, title, x, y, width, height, frameId, objectId
   if (template === 'blank') return []
   if (template === 'title') return [
     text('slide_title', title, x + 72, y + height * 0.32, width - 144, 46, INK, 'center'),
-    text('slide_subtitle', 'Created with Modellix Agent Canvas', x + 96, y + height * 0.50, width - 192, 22, '#68686B', 'center')
+    text('slide_subtitle', translate(language, 'canvas.createdWith'), x + 96, y + height * 0.50, width - 192, 22, '#68686B', 'center')
   ]
   if (template === 'image') return [
     text('slide_title', title, x + 56, y + 42, width - 112, 32),
     box('slide_image', x + 56, y + 118, width - 112, height - 174, '#F0EFFF'),
-    text('slide_image_hint', '拖入图片或使用 AI 图片生成', x + 96, y + height * 0.52, width - 192, 22, BRAND, 'center')
+    text('slide_image_hint', translate(language, 'canvas.imageHint'), x + 96, y + height * 0.52, width - 192, 22, BRAND, 'center')
   ]
   if (template === 'comparison') {
     const columnWidth = (width - 168) / 2
@@ -186,13 +182,13 @@ function slideTemplate({ template, title, x, y, width, height, frameId, objectId
       text('slide_title', title, x + 56, y + 42, width - 112, 32),
       box('slide_left', x + 56, y + 126, columnWidth, height - 184),
       box('slide_right', x + 112 + columnWidth, y + 126, columnWidth, height - 184),
-      text('slide_left_title', '方案 A', x + 80, y + 154, columnWidth - 48, 24),
-      text('slide_right_title', '方案 B', x + 136 + columnWidth, y + 154, columnWidth - 48, 24)
+      text('slide_left_title', translate(language, 'canvas.optionA'), x + 80, y + 154, columnWidth - 48, 24),
+      text('slide_right_title', translate(language, 'canvas.optionB'), x + 136 + columnWidth, y + 154, columnWidth - 48, 24)
     ]
   }
   return [
     text('slide_title', title, x + 56, y + 48, width - 112, 34),
-    text('slide_content', '• 在这里添加关键观点\n• 支持普通画布元素与图片\n• 可直接标注并进入图片编辑流程', x + 72, y + 152, width - 144, 24, '#4A4A50')
+    text('slide_content', translate(language, 'canvas.bullets'), x + 72, y + 152, width - 144, 24, '#4A4A50')
   ]
 }
 

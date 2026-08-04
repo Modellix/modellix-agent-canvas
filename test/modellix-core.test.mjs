@@ -69,6 +69,7 @@ test("reading a new Canvas returns an in-memory default without creating files",
   const root = await mkdtemp(path.join(tmpdir(), "modellix-readonly-project-"));
   try {
     const project = await new CanvasProjectStore(root).readProject({ hydrateFiles: true });
+    assert.equal(project.settings.language, "en");
     assert.equal(project.pages.length, 1);
     await assert.rejects(lstat(path.join(root, ".modellix")), (error) => error?.code === "ENOENT");
   } finally {
@@ -292,17 +293,22 @@ test("local fallback uses loopback, one-time bootstrap, strict cookie, Host and 
     assert.equal((await fetch(`${origin}/api/project`, { method: "PUT", headers: { cookie: sessionCookie, origin: "https://evil.invalid", "content-type": "application/json" }, body: "{}" })).status, 400);
     assert.equal((await fetch(`${origin}/api/project`, { method: "PUT", headers: { cookie: sessionCookie, origin, "content-type": "text/plain" }, body: "{}" })).status, 415);
     const setup = await server.createSetupUrl();
-    const embeddedSetup = await fetch(`${setup.setupUrl}?embedded=1`);
+    assert.match(setup.setupUrl, /language=en/u);
+    const embeddedSetup = await fetch(`${setup.setupUrl}&embedded=1`);
     assert.match(await embeddedSetup.text(), /type="password"/u);
     assert.equal(embeddedSetup.headers.get("x-frame-options"), null);
     assert.match(embeddedSetup.headers.get("content-security-policy"), /frame-ancestors \*/u);
+    const japaneseSetup = await server.createSetupUrl("ja-JP");
+    const japaneseHtml = await (await fetch(`${japaneseSetup.setupUrl}&embedded=1`)).text();
+    assert.match(japaneseHtml, /lang="ja-JP"/u);
+    assert.match(japaneseHtml, /保存して検証/u);
     const sameOriginSetup = await fetch(setup.setupUrl, {
       method: "POST",
       headers: { origin, "content-type": "application/x-www-form-urlencoded" },
       body: "apiKey=same-origin-key",
     });
     assert.equal(sameOriginSetup.status, 200);
-    assert.match(await sameOriginSetup.text(), /配置完成/u);
+    assert.match(await sameOriginSetup.text(), /Configuration complete/u);
     const rejectedSetup = await server.createSetupUrl();
     assert.equal((await fetch(rejectedSetup.setupUrl, {
       method: "POST",
@@ -315,8 +321,8 @@ test("local fallback uses loopback, one-time bootstrap, strict cookie, Host and 
       headers: { origin: "null", "content-type": "application/x-www-form-urlencoded" },
       body: "apiKey=opaque-origin-key",
     })).status, 200);
-    const invalidSetup = await server.createSetupUrl();
-    const invalidResponse = await fetch(`${invalidSetup.setupUrl}?embedded=1`, {
+    const invalidSetup = await server.createSetupUrl("zh-CN");
+    const invalidResponse = await fetch(`${invalidSetup.setupUrl}&embedded=1`, {
       method: "POST",
       headers: { origin: "null", "content-type": "application/x-www-form-urlencoded" },
       body: "apiKey=invalid-key",

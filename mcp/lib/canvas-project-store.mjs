@@ -19,6 +19,7 @@ import { imageSize } from "image-size";
 import { lock } from "proper-lockfile";
 
 import { ModellixCanvasError } from "./modellix-errors.mjs";
+import { normalizeLanguage } from "./modellix-i18n.mjs";
 
 export const CANVAS_PROJECT_SCHEMA_VERSION = 1;
 export const CANVAS_PAGE_SCHEMA_VERSION = 1;
@@ -618,7 +619,7 @@ function defaultProject() {
     engine: { name: "excalidraw", adapterVersion: 1 },
     activePageId: page.id,
     pages: [page],
-    settings: { theme: "light", language: "zh-CN", grid: false },
+    settings: { theme: "light", language: "en", grid: false },
     createdAt: now,
     updatedAt: now,
   };
@@ -729,7 +730,7 @@ function sanitizeAppState(appState = {}) {
 function sanitizeSettings(settings = {}) {
   return {
     theme: settings.theme === "dark" ? "dark" : "light",
-    language: settings.language === "en" ? "en" : "zh-CN",
+    language: normalizeLanguage(settings.language),
     grid: Boolean(settings.grid),
   };
 }

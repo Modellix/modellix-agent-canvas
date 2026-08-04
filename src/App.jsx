@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Excalidraw,
   exportToBlob,
@@ -17,6 +17,7 @@ import {
   FileImage,
   ImagePlus,
   KeyRound,
+  Languages,
   Layers3,
   ListTodo,
   LoaderCircle,
@@ -67,14 +68,20 @@ import {
   selectedBusinessObject,
   selectedElements,
   selectedImages,
-  SLIDE_TEMPLATE_OPTIONS,
+  slideTemplateOptions,
   slideDimensions,
   viewportCenter
 } from './canvasDomain'
+import { createTranslator, DEFAULT_LANGUAGE, normalizeLanguage, SUPPORTED_LANGUAGES } from '../mcp/lib/modellix-i18n.mjs'
 import './styles.css'
 
-const EMPTY_HTML = `<!doctype html>
-<html lang="zh-CN">
+const I18nContext = createContext({ language: DEFAULT_LANGUAGE, t: createTranslator(DEFAULT_LANGUAGE) })
+function useI18n() { return useContext(I18nContext) }
+
+function emptyHtml(language) {
+  const t = createTranslator(language)
+  return `<!doctype html>
+<html lang="${normalizeLanguage(language)}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -86,15 +93,16 @@ const EMPTY_HTML = `<!doctype html>
     strong { color: #605aff; }
   </style>
 </head>
-<body><main><p><strong>Modellix Agent Canvas</strong></p><h1>从这里开始你的 HTML 草稿</h1><p>在右侧编辑源码，预览会自动更新。</p></main></body>
+<body><main><p><strong>Modellix Agent Canvas</strong></p><h1>${t('html.draftHeading')}</h1><p>${t('html.draftBody')}</p></main></body>
 </html>`
+}
 
 const SIZE_OPTIONS = [
   ['1024x1024', '1:1 · 1024'],
-  ['1536x1024', '3:2 · 横向'],
-  ['1024x1536', '2:3 · 纵向'],
-  ['2048x1152', '16:9 · 横屏'],
-  ['1152x2048', '9:16 · 竖屏'],
+  ['1536x1024', 'image.sizeLandscape', '3:2'],
+  ['1024x1536', 'image.sizePortrait', '2:3'],
+  ['2048x1152', 'image.sizeLandscape', '16:9'],
+  ['1152x2048', 'image.sizePortrait', '9:16'],
   ['2048x2048', '1:1 · 2K'],
   ['3840x2160', '16:9 · 4K']
 ]
@@ -136,6 +144,7 @@ export default function App() {
   const apiRef = useRef(null)
   const sceneRef = useRef({ elements: [], appState: {}, files: {} })
   const saveTimerRef = useRef(null)
+  const saveQueueRef = useRef(Promise.resolve())
   const loadedRef = useRef(false)
   const projectRef = useRef(null)
   const themeRef = useRef('light')
@@ -145,6 +154,10 @@ export default function App() {
   const holderDialogReturnFocusRef = useRef(null)
   const selectionSignatureRef = useRef('')
   const sceneSignatureRef = useRef('')
+
+  const language = normalizeLanguage(project?.settings?.language)
+  const t = useMemo(() => createTranslator(language), [language])
+  const i18nValue = useMemo(() => ({ language, t }), [language, t])
 
   const activePage = useMemo(() => project?.pages.find(page => page.id === project.activePageId) || project?.pages[0], [project])
   const selected = useMemo(() => selectedElements(sceneRef.current.elements, sceneRef.current.appState), [selectionVersion])
@@ -161,16 +174,20 @@ export default function App() {
   useEffect(() => {
     const improveCanvasAccessibility = () => {
       const mainMenu = document.querySelector('[data-testid="main-menu-trigger"]')
-      if (mainMenu && !mainMenu.getAttribute('aria-label')) mainMenu.setAttribute('aria-label', '画布菜单')
+      if (mainMenu) mainMenu.setAttribute('aria-label', t('a11y.canvasMenu'))
       const resetZoom = document.querySelector('button.reset-zoom-button')
       const zoomText = resetZoom?.textContent?.trim()
-      if (resetZoom && zoomText) resetZoom.setAttribute('aria-label', `重置缩放 ${zoomText}`)
+      if (resetZoom && zoomText) resetZoom.setAttribute('aria-label', t('a11y.resetZoom', { value: zoomText }))
     }
     improveCanvasAccessibility()
     const observer = new MutationObserver(improveCanvasAccessibility)
     observer.observe(document.body, { childList: true, subtree: true, characterData: true })
     return () => observer.disconnect()
-  }, [])
+  }, [t])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
 
   const refreshProject = useCallback(async () => {
     const data = await loadProject()
@@ -236,7 +253,7 @@ export default function App() {
   const persist = useCallback(async ({ immediate = false } = {}) => {
     if (!projectRef.current || !loadedRef.current) return
     window.clearTimeout(saveTimerRef.current)
-    const commit = async () => {
+    const commit = () => queueProjectSave(async () => {
       const current = projectRef.current
       const currentPage = current?.pages.find(page => page.id === current.activePageId)
       if (!current || !currentPage) return
@@ -259,7 +276,7 @@ export default function App() {
         setSaveState('error')
         showToast(error.message, 'error')
       }
-    }
+    })
     if (immediate) await commit()
     else saveTimerRef.current = window.setTimeout(commit, 700)
   }, [])
@@ -329,21 +346,21 @@ export default function App() {
   const createHolder = useCallback(options => {
     const center = viewportCenter(apiRef.current)
     const { width, height } = options
-    const { elements } = createImageHolder({ ...options, x: center.x - width / 2, y: center.y - height / 2 })
+    const { elements } = createImageHolder({ ...options, language, x: center.x - width / 2, y: center.y - height / 2 })
     addElements(elements)
     setHolderCreateOpen(false)
     setActivePanel('ai')
     setPanelOpen(true)
-  }, [addElements])
+  }, [addElements, language])
 
   const createDraft = useCallback(() => {
     const center = viewportCenter(apiRef.current)
-    const draft = createHtmlDraft({ x: center.x - 480, y: center.y - 270 })
+    const draft = createHtmlDraft({ x: center.x - 480, y: center.y - 270, language })
     addElements(draft.elements)
-    updatePageAppData(data => ({ ...data, htmlDrafts: { ...(data.htmlDrafts || {}), [draft.objectId]: { source: EMPTY_HTML, revision: 1, title: 'HTML Draft', entryFile: 'index.html' } } }))
+    updatePageAppData(data => ({ ...data, htmlDrafts: { ...(data.htmlDrafts || {}), [draft.objectId]: { source: emptyHtml(language), revision: 1, title: 'HTML Draft', entryFile: 'index.html' } } }))
     setActivePanel('html')
     setPanelOpen(true)
-  }, [addElements, project, activePage])
+  }, [addElements, project, activePage, language])
 
   const openDeckCreator = useCallback(() => {
     deckDialogReturnFocusRef.current = document.activeElement
@@ -353,13 +370,13 @@ export default function App() {
   const createDeck = useCallback(options => {
     const center = viewportCenter(apiRef.current)
     const dimensions = slideDimensions(options)
-    const result = createSlideDeck({ ...options, x: center.x - dimensions.width / 2, y: center.y - dimensions.height / 2 })
+    const result = createSlideDeck({ ...options, language, x: center.x - dimensions.width / 2, y: center.y - dimensions.height / 2 })
     addElements(result.elements)
     updatePageAppData(data => ({ ...data, decks: { ...(data.decks || {}), [result.deckId]: result.deck } }))
     setDeckCreateOpen(false)
     setActivePanel('slides')
     setPanelOpen(true)
-  }, [addElements])
+  }, [addElements, language])
 
   function updatePageAppData(updater) {
     const next = {
@@ -455,7 +472,7 @@ export default function App() {
 
   async function addPage() {
     await persist({ immediate: true })
-    const page = emptyPage(`page_${crypto.randomUUID().replaceAll('-', '')}`, `Page ${project.pages.length + 1}`)
+    const page = emptyPage(`page_${crypto.randomUUID().replaceAll('-', '')}`, t('pages.defaultName', { number: project.pages.length + 1 }))
     const next = { ...projectRef.current, activePageId: page.id, pages: [...projectRef.current.pages, page] }
     projectRef.current = next
     setProject(next)
@@ -469,7 +486,7 @@ export default function App() {
 
   async function duplicatePage(page) {
     await persist({ immediate: true })
-    const clone = duplicatePageData(page)
+    const clone = duplicatePageData(page, t)
     const next = { ...projectRef.current, activePageId: clone.id, pages: [...projectRef.current.pages, clone] }
     projectRef.current = next
     setProject(next)
@@ -482,7 +499,8 @@ export default function App() {
   }
 
   async function renamePage(page) {
-    const name = window.prompt('页面名称', page.name)?.trim()
+    await persist({ immediate: true })
+    const name = window.prompt(t('toast.pageName'), page.name)?.trim()
     if (!name) return
     const next = { ...projectRef.current, pages: projectRef.current.pages.map(item => item.id === page.id ? { ...item, name: name.slice(0, 120) } : item) }
     projectRef.current = next
@@ -491,8 +509,9 @@ export default function App() {
   }
 
   async function deletePage(page) {
-    if (project.pages.length === 1) return showToast('项目至少保留一个页面。', 'warning')
-    if (!window.confirm(`删除“${page.name}”？页面任务记录仍会保留。`)) return
+    await persist({ immediate: true })
+    if (project.pages.length === 1) return showToast(t('toast.keepOnePage'), 'warning')
+    if (!window.confirm(t('toast.deletePage', { name: page.name }))) return
     const index = project.pages.findIndex(item => item.id === page.id)
     const pages = project.pages.filter(item => item.id !== page.id)
     const activePageId = project.activePageId === page.id ? pages[Math.min(index, pages.length - 1)].id : project.activePageId
@@ -530,11 +549,20 @@ export default function App() {
   }
 
   async function saveProjectAndRefreshRevision(value) {
-    const saved = await saveProject(value)
-    const committed = { ...value, revision: saved.revision || value.revision }
-    projectRef.current = committed
-    setProject(committed)
-    return committed
+    return queueProjectSave(async () => {
+      const candidate = { ...value, revision: projectRef.current?.revision || value.revision }
+      const saved = await saveProject(candidate)
+      const committed = { ...candidate, revision: saved.revision || candidate.revision }
+      projectRef.current = committed
+      setProject(committed)
+      return committed
+    })
+  }
+
+  function queueProjectSave(task) {
+    const queued = saveQueueRef.current.catch(() => undefined).then(task)
+    saveQueueRef.current = queued
+    return queued
   }
 
   async function exportScene(format = 'png', selectionOnly = false, scale = 2) {
@@ -547,7 +575,7 @@ export default function App() {
     const elements = selectionOnly
       ? sceneElements.filter(element => chosenIds.has(element.id) || selectedFrameIds.has(element.frameId))
       : sceneElements
-    if (!elements.length) return showToast('没有可导出的内容。', 'warning')
+    if (!elements.length) return showToast(t('toast.noExportContent'), 'warning')
     try {
       if (format === 'svg') {
         const svg = await exportToSvg({ elements, appState: { ...api.getAppState(), exportBackground: true }, files: api.getFiles(), exportPadding: 24 })
@@ -557,9 +585,9 @@ export default function App() {
         const blob = await exportToBlob({ elements, appState: { ...api.getAppState(), exportBackground: true, exportScale }, files: api.getFiles(), mimeType: 'image/png', exportPadding: 24 })
         downloadBlob(blob, `${activePage.name}@${exportScale}x.png`)
       }
-      showToast('导出完成。', 'success')
+      showToast(t('toast.exportDone'), 'success')
     } catch (error) {
-      showToast(`导出失败：${error.message}`, 'error')
+      showToast(t('toast.exportFailed', { message: error.message }), 'error')
     }
   }
 
@@ -572,7 +600,7 @@ export default function App() {
   async function beginPresentation(deck) {
     const api = apiRef.current
     const frames = deck.slides.map(slide => api.getSceneElements().find(element => element.id === slide.id)).filter(Boolean)
-    if (!frames.length) return showToast('演示文稿没有可播放的页面。', 'warning')
+    if (!frames.length) return showToast(t('toast.noSlides'), 'warning')
     setPresentation({ deck, frames, index: 0 })
   }
 
@@ -584,23 +612,32 @@ export default function App() {
   function beginApiKeySetup() {
     setActivePanel('ai')
     setPanelOpen(true)
-    showToast('请在右侧安全输入并保存 API Key。')
+    showToast(t('toast.configureKey'))
   }
 
-  if (loading) return <LoadingScreen />
-  if (loadError || !project || !activePage) return <ErrorScreen message={loadError || '项目无法打开。'} onRetry={() => window.location.reload()} />
+  async function changeLanguage(value) {
+    const nextLanguage = normalizeLanguage(value)
+    const current = projectRef.current
+    if (!current || normalizeLanguage(current.settings?.language) === nextLanguage) return
+    const next = { ...current, settings: { ...(current.settings || {}), language: nextLanguage } }
+    projectRef.current = next
+    setProject(next)
+    await persist({ immediate: true })
+  }
+
+  if (loading) return <I18nContext.Provider value={i18nValue}><LoadingScreen /></I18nContext.Provider>
+  if (loadError || !project || !activePage) return <I18nContext.Provider value={i18nValue}><ErrorScreen message={loadError || t('error.projectUnavailable')} onRetry={() => window.location.reload()} /></I18nContext.Provider>
 
   return (
-    <div className={`modellix-app theme-${theme}`}>
+    <I18nContext.Provider value={i18nValue}><div className={`modellix-app theme-${theme}`}>
       <AppHeader
         project={project}
         page={activePage}
-        status={status}
         saveState={saveState}
+        language={language}
         theme={theme}
+        onLanguage={changeLanguage}
         onTheme={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}
-        onStatus={() => refreshStatus(true)}
-        onSetup={beginApiKeySetup}
         onFullscreen={() => requestFullscreen()}
         onExport={(format, scale) => exportScene(format, false, scale)}
         onExportProject={exportProjectJson}
@@ -620,13 +657,13 @@ export default function App() {
         />
 
         <main className="canvas-stage" aria-label="Modellix infinite canvas">
-          {missingAssetCount > 0 && <div className="missing-assets-banner" role="alert"><AlertTriangle size={15} /><span>{missingAssetCount} 个项目图片资产缺失。画布已保留占位；恢复 `.modellix/canvas/assets/images/` 中对应文件后刷新。</span></div>}
+          {missingAssetCount > 0 && <div className="missing-assets-banner" role="alert"><AlertTriangle size={15} /><span>{t('toast.missingAssets', { count: missingAssetCount })}</span></div>}
           <Excalidraw
             key={`${activePage.id}:${canvasRevision}`}
             excalidrawAPI={api => { apiRef.current = api }}
             initialData={excalidrawInitialData}
             onChange={onSceneChange}
-            langCode={project.settings?.language === 'en' ? 'en' : 'zh-CN'}
+            langCode={language}
             theme={theme}
             name={project.name}
             autoFocus
@@ -662,7 +699,7 @@ export default function App() {
             onPresent={beginPresentation}
           />
         )}
-        {!panelOpen && <button className="panel-reopen" onClick={() => setPanelOpen(true)} aria-label="打开侧边面板"><PanelRightOpen size={18} /></button>}
+        {!panelOpen && <button className="panel-reopen" onClick={() => setPanelOpen(true)} aria-label={t('a11y.openPanel')}><PanelRightOpen size={18} /></button>}
       </div>
 
       <PageBar
@@ -681,13 +718,14 @@ export default function App() {
       {holderCreateOpen && <HolderCreateDialog returnFocus={holderDialogReturnFocusRef.current} onCancel={() => setHolderCreateOpen(false)} onCreate={createHolder} />}
       {deckCreateOpen && <DeckCreateDialog returnFocus={deckDialogReturnFocusRef.current} onCancel={() => setDeckCreateOpen(false)} onCreate={createDeck} />}
       {toast && <Toast value={toast} />}
-    </div>
+    </div></I18nContext.Provider>
   )
 }
 
-function AppHeader({ project, page, status, saveState, theme, onTheme, onStatus, onSetup, onFullscreen, onExport, onExportProject, canUndo, canRedo, onUndo, onRedo }) {
+function AppHeader({ project, page, saveState, language, theme, onLanguage, onTheme, onFullscreen, onExport, onExportProject, canUndo, canRedo, onUndo, onRedo }) {
   const [menu, setMenu] = useState(false)
-  const credential = status?.credentialState || 'missing'
+  const { t } = useI18n()
+  const saveLabel = saveState === 'saving' ? t('header.saving') : saveState === 'error' ? t('header.saveFailed') : saveState === 'dirty' ? t('header.unsaved') : t('header.saved')
   return (
     <header className="app-header">
       <div className="brand-block">
@@ -695,15 +733,15 @@ function AppHeader({ project, page, status, saveState, theme, onTheme, onStatus,
         <div><strong>Modellix Agent Canvas</strong><span>{project.name} / {page.name}</span></div>
       </div>
       <div className="header-actions">
-        <span className={`save-indicator state-${saveState}`}>{saveState === 'saving' ? <LoaderCircle size={14} className="spin" /> : saveState === 'error' ? <AlertTriangle size={14} /> : <Check size={14} />}{saveState === 'saving' ? '保存中' : saveState === 'error' ? '保存失败' : saveState === 'dirty' ? '待保存' : '已保存'}</span>
-        <div className="history-actions" aria-label="页面历史"><button className="icon-button" disabled={!canUndo} onClick={onUndo} aria-label="撤销" title="撤销（Ctrl/Cmd+Z）"><RotateCcw size={17} /></button><button className="icon-button" disabled={!canRedo} onClick={onRedo} aria-label="重做" title="重做（Ctrl/Cmd+Shift+Z）"><RotateCw size={17} /></button></div>
-        <button className={`credential-pill state-${credential}`} onClick={credential === 'valid' ? onStatus : onSetup}><KeyRound size={15} />{credential === 'valid' ? 'API Key 已配置' : credential === 'invalid' ? 'API Key 失效' : '配置 API Key'}</button>
-        <button className="icon-button" onClick={onTheme} aria-label="切换主题" title="切换主题">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-        <button className="icon-button" onClick={onFullscreen} aria-label="全屏" title="全屏"><Maximize2 size={18} /></button>
-        <button className="primary-button" onClick={() => onExport('png', 2)}><Download size={16} />导出</button>
+        <span className={`save-indicator state-${saveState}`}>{saveState === 'saving' ? <LoaderCircle size={14} className="spin" /> : saveState === 'error' ? <AlertTriangle size={14} /> : <Check size={14} />}{saveLabel}</span>
+        <div className="history-actions" aria-label={t('a11y.pageHistory')}><button className="icon-button" disabled={!canUndo} onClick={onUndo} aria-label={t('header.undo')} title={t('header.undoTitle')}><RotateCcw size={17} /></button><button className="icon-button" disabled={!canRedo} onClick={onRedo} aria-label={t('header.redo')} title={t('header.redoTitle')}><RotateCw size={17} /></button></div>
+        <label className="language-switch" title={t('language.label')}><Languages size={15} /><select name="canvas-language" aria-label={t('language.label')} value={language} onChange={event => onLanguage(event.target.value)}>{SUPPORTED_LANGUAGES.map(option => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
+        <button className="icon-button" onClick={onTheme} aria-label={t('header.theme')} title={t('header.theme')}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
+        <button className="icon-button" onClick={onFullscreen} aria-label={t('header.fullscreen')} title={t('header.fullscreen')}><Maximize2 size={18} /></button>
+        <button className="primary-button" onClick={() => onExport('png', 2)}><Download size={16} />{t('header.export')}</button>
         <div className="menu-anchor">
-          <button className="icon-button" onClick={() => setMenu(value => !value)} aria-label="更多" title="更多"><MoreHorizontal size={18} /></button>
-          {menu && <div className="dropdown"><button onClick={() => { onExport('png', 1); setMenu(false) }}><Download size={16} />当前页 PNG · 1x</button><button onClick={() => { onExport('png', 2); setMenu(false) }}><Download size={16} />当前页 PNG · 2x</button><button onClick={() => { onExport('png', 4); setMenu(false) }}><Download size={16} />当前页 PNG · 4x</button><button onClick={() => { onExport('svg'); setMenu(false) }}><FileImage size={16} />当前页 SVG</button><button onClick={() => { onExportProject(); setMenu(false) }}><Save size={16} />导出项目备份</button><a href="https://www.modellix.ai/console/api-key" target="_blank" rel="noreferrer"><ExternalLink size={16} />Modellix 控制台</a></div>}
+          <button className="icon-button" onClick={() => setMenu(value => !value)} aria-label={t('header.more')} title={t('header.more')}><MoreHorizontal size={18} /></button>
+          {menu && <div className="dropdown"><button onClick={() => { onExport('png', 1); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 1 })}</button><button onClick={() => { onExport('png', 2); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 2 })}</button><button onClick={() => { onExport('png', 4); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 4 })}</button><button onClick={() => { onExport('svg'); setMenu(false) }}><FileImage size={16} />{t('header.currentSvg')}</button><button onClick={() => { onExportProject(); setMenu(false) }}><Save size={16} />{t('header.projectBackup')}</button><a href="https://www.modellix.ai/console/api-key" target="_blank" rel="noreferrer"><ExternalLink size={16} />{t('header.console')}</a></div>}
         </div>
       </div>
     </header>
@@ -711,12 +749,13 @@ function AppHeader({ project, page, status, saveState, theme, onTheme, onStatus,
 }
 
 function QuickRail({ active, onPanel, onHolder, onHtml, onSlides }) {
+  const { t } = useI18n()
   return <aside className="quick-rail" aria-label="Modellix tools">
-    <RailButton active={active === 'ai'} icon={Sparkles} label="AI 图片" onClick={() => onPanel('ai')} />
-    <RailButton icon={ImagePlus} label="图片占位" onClick={onHolder} />
-    <RailButton icon={Code2} label="HTML" onClick={onHtml} />
-    <RailButton icon={Layers3} label="演示文稿" onClick={onSlides} />
-    <RailButton active={active === 'tasks'} icon={ListTodo} label="任务" onClick={() => onPanel('tasks')} />
+    <RailButton active={active === 'ai'} icon={Sparkles} label={t('rail.ai')} onClick={() => onPanel('ai')} />
+    <RailButton icon={ImagePlus} label={t('rail.holder')} onClick={onHolder} />
+    <RailButton icon={Code2} label={t('rail.html')} onClick={onHtml} />
+    <RailButton icon={Layers3} label={t('rail.slides')} onClick={onSlides} />
+    <RailButton active={active === 'tasks'} icon={ListTodo} label={t('rail.tasks')} onClick={() => onPanel('tasks')} />
   </aside>
 }
 
@@ -725,19 +764,21 @@ function RailButton({ active, icon: Icon, label, onClick }) {
 }
 
 function SelectionActions({ selection, businessObject, onEdit, onHtml, onExport }) {
+  const { t } = useI18n()
   if (!selection.length) return null
   const hasImage = selection.some(element => element.type === 'image')
   const kind = businessKindOf(businessObject)
   return <div className="selection-actions">
-    {hasImage && <button onClick={onEdit}><WandSparkles size={15} />编辑图片</button>}
-    {kind === 'html-draft' && <button onClick={onHtml}><Code2 size={15} />编辑 HTML</button>}
-    <button onClick={onExport}><Download size={15} />导出选择</button>
+    {hasImage && <button onClick={onEdit}><WandSparkles size={15} />{t('selection.editImage')}</button>}
+    {kind === 'html-draft' && <button onClick={onHtml}><Code2 size={15} />{t('selection.editHtml')}</button>}
+    <button onClick={onExport}><Download size={15} />{t('selection.export')}</button>
   </div>
 }
 
 function Inspector(props) {
+  const { t } = useI18n()
   return <aside className="inspector">
-    <div className="inspector-header"><div><span className="eyebrow">MODELLIX</span><h2>{panelTitle(props.panel)}</h2></div><button className="icon-button" onClick={props.onClose} aria-label="关闭面板"><PanelRightClose size={18} /></button></div>
+    <div className="inspector-header"><div><span className="eyebrow">MODELLIX</span><h2>{panelTitle(props.panel, t)}</h2></div><button className="icon-button" onClick={props.onClose} aria-label={t('a11y.closePanel')}><PanelRightClose size={18} /></button></div>
     {props.panel === 'ai' && <ImagePanel {...props} />}
     {props.panel === 'html' && <HtmlPanel {...props} />}
     {props.panel === 'slides' && <SlidesPanel {...props} />}
@@ -746,6 +787,7 @@ function Inspector(props) {
 }
 
 function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatus, onProjectReload, onRefreshTasks, onToast }) {
+  const { t } = useI18n()
   const [form, setForm] = useState(DEFAULT_FORM)
   const [busy, setBusy] = useState(false)
   const [prepared, setPrepared] = useState(null)
@@ -784,11 +826,11 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
   }
 
   async function prepare({ annotated = false } = {}) {
-    if (!form.prompt.trim()) return onToast('请输入图片描述。', 'warning')
+    if (!form.prompt.trim()) return onToast(t('image.promptRequired'), 'warning')
     if (status?.credentialState !== 'valid') return onSetup()
     setBusy(true)
     confirmationReturnFocusRef.current = document.activeElement
-    setProgress('正在校验模型、规格与费用…')
+    setProgress(t('image.preparing'))
     try {
       let sourceAssetIds = []
       let sourceObjectIds = references.map(objectIdOf)
@@ -823,7 +865,7 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
   async function submit() {
     setConfirmOpen(false)
     setBusy(true)
-    setProgress('正在提交付费任务，请勿重复操作…')
+    setProgress(t('image.submitting'))
     try {
       const operationId = `op_${crypto.randomUUID().replaceAll('-', '')}`
       const submitted = await submitImageTask({
@@ -835,38 +877,39 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
       for (const task of submitted.tasks) {
         // Sequential polling keeps request volume predictable and preserves result order.
         // eslint-disable-next-line no-await-in-loop
-        await pollAndFinalize(task.taskId, setProgress)
+        await pollAndFinalize(task.taskId, setProgress, t)
       }
       await onProjectReload()
       await onRefreshTasks()
       setForm(DEFAULT_FORM)
       setPrepared(null)
-      onToast('图片已生成并保存到项目。', 'success')
+      onToast(t('image.completed'), 'success')
     } catch (error) {
-      onToast(error.code === 'SUBMISSION_UNKNOWN' ? `${error.message} 请在任务中心继续查询，不要重新提交。` : error.message, 'error')
+      onToast(error.code === 'SUBMISSION_UNKNOWN' ? t('image.unknownOutcome', { message: error.message }) : error.message, 'error')
       await onRefreshTasks()
     } finally { setBusy(false); setProgress('') }
   }
 
   return <div className="panel-body">
     {status?.credentialState !== 'valid' && <CredentialCard status={status} onRefresh={onRefreshStatus} />}
-    <div className="context-card"><div><span>当前模式</span><strong>{mode === 'edit' ? `图片编辑 · ${references.length} 张参考图` : holder ? '占位符生成' : '文生图'}</strong></div>{references.length > 0 && <div className="reference-strip">{references.map((element, index) => <div key={element.id}><span>{index === 0 ? '主图' : `参考 ${index + 1}`}</span><button disabled={index === 0} onClick={() => moveReference(index, -1)} aria-label={`将参考图 ${index + 1} 前移`}>←</button><button disabled={index === references.length - 1} onClick={() => moveReference(index, 1)} aria-label={`将参考图 ${index + 1} 后移`}>→</button></div>)}</div>}{selectedReferenceElements.length > 10 && <small className="context-warning">一次最多使用 10 张，已按当前顺序取前 10 张。</small>}</div>
-    <label className="field"><span>描述你想要的图片</span><textarea name="image-prompt" value={form.prompt} onChange={event => update('prompt', event.target.value)} rows={5} placeholder={mode === 'edit' ? '例如：保留主体与构图，把背景改成清晨的雪山…' : '例如：一张高级、克制的 AI 创作工作台产品主视觉…'} maxLength={32000} /></label>
+    <div className="context-card"><div><span>{t('image.currentMode')}</span><strong>{mode === 'edit' ? t('image.modeEdit', { count: references.length }) : holder ? t('image.modeHolder') : t('image.modeGenerate')}</strong></div>{references.length > 0 && <div className="reference-strip">{references.map((element, index) => <div key={element.id}><span>{index === 0 ? t('image.primary') : t('image.reference', { number: index + 1 })}</span><button disabled={index === 0} onClick={() => moveReference(index, -1)} aria-label={t('image.moveReferenceBack', { number: index + 1 })}>←</button><button disabled={index === references.length - 1} onClick={() => moveReference(index, 1)} aria-label={t('image.moveReferenceForward', { number: index + 1 })}>→</button></div>)}</div>}{selectedReferenceElements.length > 10 && <small className="context-warning">{t('image.referenceLimit')}</small>}</div>
+    <label className="field"><span>{t('image.promptLabel')}</span><textarea name="image-prompt" value={form.prompt} onChange={event => update('prompt', event.target.value)} rows={5} placeholder={t(mode === 'edit' ? 'image.promptEdit' : 'image.promptGenerate')} maxLength={32000} /></label>
     <div className="field-row">
-      <label className="field"><span>尺寸</span><select name="image-size" value={form.size} onChange={event => update('size', event.target.value)}>{SIZE_OPTIONS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-      <label className="field"><span>数量</span><select name="image-count" value={form.count} onChange={event => update('count', Number(event.target.value))}>{[1, 2, 3, 4].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label className="field"><span>{t('image.size')}</span><select name="image-size" value={form.size} onChange={event => update('size', event.target.value)}>{SIZE_OPTIONS.map(option => <option value={option[0]} key={option[0]}>{sizeOptionLabel(option, t)}</option>)}</select></label>
+      <label className="field"><span>{t('image.count')}</span><select name="image-count" value={form.count} onChange={event => update('count', Number(event.target.value))}>{[1, 2, 3, 4].map(value => <option key={value}>{value}</option>)}</select></label>
     </div>
-    <details className="advanced"><summary>高级设置<ChevronDown size={16} /></summary><div className="field-row"><label className="field"><span>背景</span><select name="image-background" value={form.background} onChange={event => update('background', event.target.value)}><option value="opaque">不透明</option><option value="transparent">透明</option><option value="auto">自动</option></select></label><label className="field"><span>质量</span><select name="image-quality" value={form.quality} onChange={event => update('quality', event.target.value)}><option value="low">快速</option><option value="medium">标准</option><option value="high">高质量</option></select></label></div>{holder && <label className="field"><span>占位适配</span><select name="holder-fit-policy" value={form.fitPolicy} onChange={event => update('fitPolicy', event.target.value)}><option value="contain">完整显示（保持比例）</option><option value="exact">铺满占位区（可能拉伸）</option></select></label>}{mode === 'edit' && <label className="switch-row"><input name="strict-input-fidelity" type="checkbox" checked={form.inputFidelity === 'strict'} onChange={event => update('inputFidelity', event.target.checked ? 'strict' : 'standard')} /><span><strong>严格输入保真</strong><small>尽量保留主体身份、结构与细节</small></span></label>}</details>
+    <details className="advanced"><summary>{t('image.advanced')}<ChevronDown size={16} /></summary><div className="field-row"><label className="field"><span>{t('image.background')}</span><select name="image-background" value={form.background} onChange={event => update('background', event.target.value)}><option value="opaque">{t('image.backgroundOpaque')}</option><option value="transparent">{t('image.backgroundTransparent')}</option><option value="auto">{t('image.backgroundAuto')}</option></select></label><label className="field"><span>{t('image.quality')}</span><select name="image-quality" value={form.quality} onChange={event => update('quality', event.target.value)}><option value="low">{t('image.qualityLow')}</option><option value="medium">{t('image.qualityMedium')}</option><option value="high">{t('image.qualityHigh')}</option></select></label></div>{holder && <label className="field"><span>{t('image.holderFit')}</span><select name="holder-fit-policy" value={form.fitPolicy} onChange={event => update('fitPolicy', event.target.value)}><option value="contain">{t('image.fitContain')}</option><option value="exact">{t('image.fitExact')}</option></select></label>}{mode === 'edit' && <label className="switch-row"><input name="strict-input-fidelity" type="checkbox" checked={form.inputFidelity === 'strict'} onChange={event => update('inputFidelity', event.target.checked ? 'strict' : 'standard')} /><span><strong>{t('image.strictFidelity')}</strong><small>{t('image.strictFidelityHint')}</small></span></label>}</details>
     {progress && <div className="progress-line"><LoaderCircle size={16} className="spin" />{progress}</div>}
     <div className="panel-actions">
-      {mode === 'edit' && selection.length > selectedReferenceElements.length && <button className="secondary-button" disabled={busy} onClick={() => prepare({ annotated: true })}>按标注编辑</button>}
-      <button className="primary-button grow" disabled={busy || !form.prompt.trim()} onClick={() => prepare()}>{busy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}{mode === 'edit' ? '准备编辑' : '准备生成'}</button>
+      {mode === 'edit' && selection.length > selectedReferenceElements.length && <button className="secondary-button" disabled={busy} onClick={() => prepare({ annotated: true })}>{t('image.annotatedEdit')}</button>}
+      <button className="primary-button grow" disabled={busy || !form.prompt.trim()} onClick={() => prepare()}>{busy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}{t(mode === 'edit' ? 'image.prepareEdit' : 'image.prepareGenerate')}</button>
     </div>
     {confirmOpen && prepared && <PaidConfirmation prepared={prepared.result} returnFocus={confirmationReturnFocusRef.current} onCancel={() => setConfirmOpen(false)} onConfirm={submit} />}
   </div>
 }
 
 function PaidConfirmation({ prepared, returnFocus, onCancel, onConfirm }) {
+  const { language, t } = useI18n()
   const price = prepared.pricing || {}
   const total = price.estimatedTotalUsd ?? price.total ?? price.price
   const unit = price.unitPriceUsd
@@ -878,10 +921,11 @@ function PaidConfirmation({ prepared, returnFocus, onCancel, onConfirm }) {
     setSubmitting(true)
     onConfirm()
   }
-  return <div className="modal-backdrop"><section ref={dialogRef} className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" tabIndex={-1}><div className="confirm-icon"><CircleDollarSign size={24} /></div><h3 id="confirm-title">确认付费图片任务</h3><p>提交后会创建 {prepared.taskCount} 个付费任务。模型、输入或规格变化时必须重新确认。</p><dl><div><dt>实际模型</dt><dd>{prepared.modelDisplayName || prepared.modelSlug}</dd></div><div><dt>路由原因</dt><dd>{routeReason(prepared.routeReasonCode)}</dd></div><div><dt>输入图片</dt><dd>{prepared.referenceCount ? `${prepared.referenceCount} 张（第 1 张为主图）` : '无 · 文生图'}</dd></div><div><dt>请求规格</dt><dd>{formatOutputSpec(prepared.requestedOutput, prepared.taskCount)}</dd></div><div><dt>实际规格</dt><dd>{formatOutputSpec(prepared.effectiveOutput, prepared.taskCount)}</dd></div><div><dt>单价</dt><dd>{unit === undefined || unit === null ? '暂无法估算' : `$${Number(unit).toFixed(4)} ${price.currency || 'USD'}`}</dd></div><div><dt>预计总价</dt><dd>{total === undefined || total === null ? '以 Modellix 实际计费为准' : `$${Number(total).toFixed(4)} ${price.currency || 'USD'}`}</dd></div><div><dt>确认有效期</dt><dd>{formatExpiry(prepared.expiresAt)}</dd></div></dl>{prepared.capabilityWarnings?.map(item => <div className="warning-note" key={item}><AlertTriangle size={15} />{item}</div>)}<div className="modal-actions"><button className="secondary-button" disabled={submitting} onClick={onCancel}>返回修改</button><button className="primary-button" disabled={submitting} onClick={confirmOnce}>{submitting ? <LoaderCircle size={16} className="spin" /> : null}确认并提交</button></div></section></div>
+  return <div className="modal-backdrop"><section ref={dialogRef} className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" tabIndex={-1}><div className="confirm-icon"><CircleDollarSign size={24} /></div><h3 id="confirm-title">{t('confirm.title')}</h3><p>{t('confirm.description', { count: prepared.taskCount })}</p><dl><div><dt>{t('confirm.actualModel')}</dt><dd>{prepared.modelDisplayName || prepared.modelSlug}</dd></div><div><dt>{t('confirm.routeReason')}</dt><dd>{routeReason(prepared.routeReasonCode, t)}</dd></div><div><dt>{t('confirm.inputImages')}</dt><dd>{prepared.referenceCount ? t('confirm.inputCount', { count: prepared.referenceCount }) : t('confirm.noInput')}</dd></div><div><dt>{t('confirm.requestedSpec')}</dt><dd>{formatOutputSpec(prepared.requestedOutput, prepared.taskCount, t)}</dd></div><div><dt>{t('confirm.actualSpec')}</dt><dd>{formatOutputSpec(prepared.effectiveOutput, prepared.taskCount, t)}</dd></div><div><dt>{t('confirm.unitPrice')}</dt><dd>{unit === undefined || unit === null ? t('confirm.unavailable') : `$${Number(unit).toFixed(4)} ${price.currency || 'USD'}`}</dd></div><div><dt>{t('confirm.totalPrice')}</dt><dd>{total === undefined || total === null ? t('confirm.actualBilling') : `$${Number(total).toFixed(4)} ${price.currency || 'USD'}`}</dd></div><div><dt>{t('confirm.expiry')}</dt><dd>{formatExpiry(prepared.expiresAt, language, t)}</dd></div></dl>{prepared.capabilityWarnings?.map(item => <div className="warning-note" key={item}><AlertTriangle size={15} />{item}</div>)}<div className="modal-actions"><button className="secondary-button" disabled={submitting} onClick={onCancel}>{t('confirm.back')}</button><button className="primary-button" disabled={submitting} onClick={confirmOnce}>{submitting ? <LoaderCircle size={16} className="spin" /> : null}{t('confirm.submit')}</button></div></section></div>
 }
 
 function HolderCreateDialog({ returnFocus, onCancel, onCreate }) {
+  const { t } = useI18n()
   const dialogRef = useRef(null)
   const [form, setForm] = useState({ ratio: '1:1', width: 512, height: 512 })
   useModalFocus(dialogRef, onCancel, returnFocus)
@@ -895,12 +939,13 @@ function HolderCreateDialog({ returnFocus, onCancel, onCreate }) {
     const height = Math.max(160, Math.min(4096, Number(form.height) || 512))
     onCreate({ ratio: form.ratio === 'custom' ? `${width}:${height}` : form.ratio, width, height })
   }
-  return <div className="modal-backdrop"><form ref={dialogRef} className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="holder-create-title" tabIndex={-1} onSubmit={submit}><span className="eyebrow">AI 图片占位</span><h3 id="holder-create-title">选择目标画幅</h3><p>模型会参考该画幅选择尺寸；生成后默认完整显示并保持原图比例。</p><label className="field"><span>比例</span><select name="holder-ratio" autoFocus value={form.ratio} onChange={event => updateRatio(event.target.value)}>{HOLDER_RATIO_OPTIONS.map(([value]) => <option key={value} value={value}>{value}</option>)}<option value="custom">自定义</option></select></label>{form.ratio === 'custom' && <div className="field-row"><label className="field"><span>宽度</span><input name="holder-width" type="number" min="160" max="4096" value={form.width} onChange={event => setForm(current => ({ ...current, width: event.target.value }))} /></label><label className="field"><span>高度</span><input name="holder-height" type="number" min="160" max="4096" value={form.height} onChange={event => setForm(current => ({ ...current, height: event.target.value }))} /></label></div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onCancel}>取消</button><button type="submit" className="primary-button"><ImagePlus size={16} />创建占位</button></div></form></div>
+  return <div className="modal-backdrop"><form ref={dialogRef} className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="holder-create-title" tabIndex={-1} onSubmit={submit}><span className="eyebrow">{t('holder.eyebrow')}</span><h3 id="holder-create-title">{t('holder.title')}</h3><p>{t('holder.description')}</p><label className="field"><span>{t('common.ratio')}</span><select name="holder-ratio" autoFocus value={form.ratio} onChange={event => updateRatio(event.target.value)}>{HOLDER_RATIO_OPTIONS.map(([value]) => <option key={value} value={value}>{value}</option>)}<option value="custom">{t('common.custom')}</option></select></label>{form.ratio === 'custom' && <div className="field-row"><label className="field"><span>{t('common.width')}</span><input name="holder-width" type="number" min="160" max="4096" value={form.width} onChange={event => setForm(current => ({ ...current, width: event.target.value }))} /></label><label className="field"><span>{t('common.height')}</span><input name="holder-height" type="number" min="160" max="4096" value={form.height} onChange={event => setForm(current => ({ ...current, height: event.target.value }))} /></label></div>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onCancel}>{t('common.cancel')}</button><button type="submit" className="primary-button"><ImagePlus size={16} />{t('holder.create')}</button></div></form></div>
 }
 
 function DeckCreateDialog({ returnFocus, onCancel, onCreate }) {
+  const { language, t } = useI18n()
   const dialogRef = useRef(null)
-  const [form, setForm] = useState({ title: 'Untitled Deck', ratio: '16:9', customWidth: 1600, customHeight: 900, template: 'starter', count: 5 })
+  const [form, setForm] = useState(() => ({ title: t('deck.defaultTitle'), ratio: '16:9', customWidth: 1600, customHeight: 900, template: 'starter', count: 5 }))
   useModalFocus(dialogRef, onCancel, returnFocus)
   function update(key, value) { setForm(current => ({ ...current, [key]: value })) }
   function submit(event) {
@@ -909,10 +954,11 @@ function DeckCreateDialog({ returnFocus, onCancel, onCreate }) {
     if (!title) return
     onCreate({ ...form, title, count: Number(form.count), customWidth: Number(form.customWidth), customHeight: Number(form.customHeight) })
   }
-  return <div className="modal-backdrop"><form ref={dialogRef} className="confirm-modal deck-create-modal" role="dialog" aria-modal="true" aria-labelledby="deck-create-title" tabIndex={-1} onSubmit={submit}><span className="eyebrow">演示文稿</span><h3 id="deck-create-title">快速创建一套可编辑幻灯片</h3><p>选择比例和模板后即可开始；所有内容仍是普通画布元素。</p><label className="field"><span>标题</span><input name="deck-title" autoFocus value={form.title} maxLength={120} onChange={event => update('title', event.target.value)} /></label><div className="field-row"><label className="field"><span>比例</span><select name="deck-ratio" value={form.ratio} onChange={event => update('ratio', event.target.value)}><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="custom">自定义</option></select></label><label className="field"><span>页数</span><input name="deck-count" type="number" min="1" max="12" value={form.count} onChange={event => update('count', event.target.value)} /></label></div>{form.ratio === 'custom' && <div className="field-row"><label className="field"><span>宽度</span><input name="deck-width" type="number" min="320" max="7680" value={form.customWidth} onChange={event => update('customWidth', event.target.value)} /></label><label className="field"><span>高度</span><input name="deck-height" type="number" min="240" max="7680" value={form.customHeight} onChange={event => update('customHeight', event.target.value)} /></label></div>}<label className="field"><span>布局模板</span><select name="deck-template" value={form.template} onChange={event => update('template', event.target.value)}>{SLIDE_TEMPLATE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={onCancel}>取消</button><button type="submit" className="primary-button" disabled={!form.title.trim()}><Layers3 size={16} />创建演示文稿</button></div></form></div>
+  return <div className="modal-backdrop"><form ref={dialogRef} className="confirm-modal deck-create-modal" role="dialog" aria-modal="true" aria-labelledby="deck-create-title" tabIndex={-1} onSubmit={submit}><span className="eyebrow">{t('deck.eyebrow')}</span><h3 id="deck-create-title">{t('deck.createTitle')}</h3><p>{t('deck.createDescription')}</p><label className="field"><span>{t('common.title')}</span><input name="deck-title" autoFocus value={form.title} maxLength={120} onChange={event => update('title', event.target.value)} /></label><div className="field-row"><label className="field"><span>{t('common.ratio')}</span><select name="deck-ratio" value={form.ratio} onChange={event => update('ratio', event.target.value)}><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="custom">{t('common.custom')}</option></select></label><label className="field"><span>{t('deck.pages')}</span><input name="deck-count" type="number" min="1" max="12" value={form.count} onChange={event => update('count', event.target.value)} /></label></div>{form.ratio === 'custom' && <div className="field-row"><label className="field"><span>{t('common.width')}</span><input name="deck-width" type="number" min="320" max="7680" value={form.customWidth} onChange={event => update('customWidth', event.target.value)} /></label><label className="field"><span>{t('common.height')}</span><input name="deck-height" type="number" min="240" max="7680" value={form.customHeight} onChange={event => update('customHeight', event.target.value)} /></label></div>}<label className="field"><span>{t('deck.template')}</span><select name="deck-template" value={form.template} onChange={event => update('template', event.target.value)}>{slideTemplateOptions(language).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={onCancel}>{t('common.cancel')}</button><button type="submit" className="primary-button" disabled={!form.title.trim()}><Layers3 size={16} />{t('deck.create')}</button></div></form></div>
 }
 
 function CredentialCard({ status, onRefresh }) {
+  const { language, t } = useI18n()
   const [setupUrl, setSetupUrl] = useState('')
   const [setupError, setSetupError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -924,7 +970,7 @@ function CredentialCard({ status, onRefresh }) {
     setSetupUrl('')
     setSetupError('')
     try {
-      const result = await startApiKeySetup()
+      const result = await startApiKeySetup(language)
       if (requestId !== requestIdRef.current) return
       const separator = result.setupUrl.includes('?') ? '&' : '?'
       setSetupUrl(`${result.setupUrl}${separator}embedded=1`)
@@ -933,7 +979,7 @@ function CredentialCard({ status, onRefresh }) {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false)
     }
-  }, [])
+  }, [language])
 
   useEffect(() => {
     createSetup()
@@ -943,43 +989,44 @@ function CredentialCard({ status, onRefresh }) {
   return <section className="credential-card">
     <div className="credential-card-icon"><KeyRound size={20} /></div>
     <div className="credential-card-body">
-      <strong>{status?.credentialState === 'invalid' ? 'API Key 已失效，请重新配置' : '配置 Modellix API Key'}</strong>
-      <p>Key 仅提交给本机 CLI 并保存到系统凭证库，不进入画布或 MCP 参数。</p>
-      {loading && <div className="credential-setup-loading"><LoaderCircle size={16} className="spin" />正在准备安全输入框…</div>}
+      <strong>{t(status?.credentialState === 'invalid' ? 'credential.invalid' : 'credential.configure')}</strong>
+      <p>{t('credential.description')}</p>
+      {loading && <div className="credential-setup-loading"><LoaderCircle size={16} className="spin" />{t('credential.loading')}</div>}
       {setupError && <div className="credential-setup-error" role="alert"><AlertTriangle size={15} /><span>{setupError}</span></div>}
       {setupUrl && !loading && <iframe
         className="credential-setup-frame"
-        title="安全配置 Modellix API Key"
+        title={t('credential.frameTitle')}
         src={setupUrl}
         sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox"
         referrerPolicy="no-referrer"
         onLoad={() => { window.setTimeout(() => onRefresh(), 250) }}
       />}
       <div className="credential-setup-actions">
-        <button className="link-button" onClick={createSetup}><RefreshCw size={14} />输入框失效？重新生成</button>
+        <button className="link-button" onClick={createSetup}><RefreshCw size={14} />{t('credential.regenerate')}</button>
       </div>
     </div>
   </section>
 }
 
 function HtmlPanel({ page, businessObject, onUpdateAppData, onToast, api }) {
+  const { language, t } = useI18n()
   const objectId = businessKindOf(businessObject) === 'html-draft' ? objectIdOf(businessObject) : null
   const draft = objectId ? page.appData?.htmlDrafts?.[objectId] : null
-  const [source, setSource] = useState(draft?.source || EMPTY_HTML)
+  const [source, setSource] = useState(draft?.source || emptyHtml(language))
   const [previewRevision, setPreviewRevision] = useState(0)
   const [capturing, setCapturing] = useState(false)
-  useEffect(() => setSource(draft?.source || EMPTY_HTML), [objectId, draft?.revision])
-  if (!objectId) return <EmptyPanel icon={Code2} title="选择一个 HTML 草稿" description="使用左侧 HTML 工具创建草稿，或在画布中选择已有草稿。" />
+  useEffect(() => setSource(draft?.source || emptyHtml(language)), [objectId, draft?.revision, language])
+  if (!objectId) return <EmptyPanel icon={Code2} title={t('html.selectTitle')} description={t('html.selectDescription')} />
   function save() {
     const revision = Number(draft?.revision || 0) + 1
     onUpdateAppData(data => ({ ...data, htmlDrafts: { ...(data.htmlDrafts || {}), [objectId]: { ...(draft || {}), source, revision } } }))
-    onToast('HTML 草稿已保存。', 'success')
+    onToast(t('html.saved'), 'success')
   }
   async function capture() {
     setCapturing(true)
     try {
-      const blob = await captureHtmlDraft(source)
-      const dataURL = await blobToDataUrl(blob)
+      const blob = await captureHtmlDraft(source, t)
+      const dataURL = await blobToDataUrl(blob, t)
       const fileId = modelId('file')
       const center = viewportCenter(api)
       const width = 960
@@ -988,9 +1035,9 @@ function HtmlPanel({ page, businessObject, onUpdateAppData, onToast, api }) {
       const { element } = createCanvasImage({ fileId, x: center.x - width / 2, y: center.y - height / 2, width, height, kind: 'html-screenshot' })
       api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), element], appState: { selectedElementIds: { [element.id]: true } }, captureUpdate: 'IMMEDIATELY' })
       api.scrollToContent([element], { fitToContent: true, animate: true, maxZoom: 1.2 })
-      onToast('HTML 截图已插入画布。', 'success')
+      onToast(t('html.inserted'), 'success')
     } catch (error) {
-      onToast(`截图失败：${error.message}`, 'error')
+      onToast(t('html.screenshotFailed', { message: error.message }), 'error')
     } finally { setCapturing(false) }
   }
   function exportZip() {
@@ -998,15 +1045,16 @@ function HtmlPanel({ page, businessObject, onUpdateAppData, onToast, api }) {
     downloadBlob(new Blob([archive], { type: 'application/zip' }), `${safeName(draft?.title || 'html-draft')}.zip`)
   }
   const safeSource = withPreviewCsp(source)
-  return <div className="panel-body html-panel"><div className="html-tabs"><span>源码</span><div><button onClick={() => setPreviewRevision(value => value + 1)}><RefreshCw size={14} />刷新</button><button onClick={save}><Save size={15} />保存</button></div></div><textarea name="html-source" className="code-editor" value={source} onChange={event => setSource(event.target.value)} spellCheck="false" aria-label="HTML source" /><div className="preview-header"><span>安全预览</span><small>沙箱 · 无脚本与外部网络</small></div><iframe key={previewRevision} title="HTML 草稿预览" sandbox="" srcDoc={safeSource} /><div className="panel-actions"><button className="secondary-button" disabled={capturing || !api} onClick={capture}>{capturing ? <LoaderCircle size={16} className="spin" /> : <FileImage size={16} />}生成截图</button><button className="secondary-button grow" onClick={exportZip}><Download size={16} />导出源码 ZIP</button></div></div>
+  return <div className="panel-body html-panel"><div className="html-tabs"><span>{t('html.source')}</span><div><button onClick={() => setPreviewRevision(value => value + 1)}><RefreshCw size={14} />{t('common.refresh')}</button><button onClick={save}><Save size={15} />{t('common.save')}</button></div></div><textarea name="html-source" className="code-editor" value={source} onChange={event => setSource(event.target.value)} spellCheck="false" aria-label="HTML source" /><div className="preview-header"><span>{t('html.safePreview')}</span><small>{t('html.sandbox')}</small></div><iframe key={previewRevision} title={t('html.previewTitle')} sandbox="" srcDoc={safeSource} /><div className="panel-actions"><button className="secondary-button" disabled={capturing || !api} onClick={capture}>{capturing ? <LoaderCircle size={16} className="spin" /> : <FileImage size={16} />}{t('html.screenshot')}</button><button className="secondary-button grow" onClick={exportZip}><Download size={16} />{t('html.exportZip')}</button></div></div>
 }
 
 function SlidesPanel({ page, businessObject, onPresent, api, onUpdateAppData, onToast }) {
+  const { language, t } = useI18n()
   const [newTemplate, setNewTemplate] = useState('title-content')
   const meta = businessObject?.customData?.modellix
   const deckId = meta?.deckId || (meta?.kind === 'slide-deck' ? meta.objectId : null)
   const deck = deckId ? page.appData?.decks?.[deckId] : null
-  if (!deck) return <EmptyPanel icon={Layers3} title="选择一套演示文稿" description="使用左侧演示文稿工具创建，然后选择任意幻灯片。" />
+  if (!deck) return <EmptyPanel icon={Layers3} title={t('slides.selectTitle')} description={t('slides.selectDescription')} />
   const selectedSlideId = meta?.kind === 'slide' || meta?.kind === 'slide-content' ? businessObject?.frameId || businessObject?.id : null
   function updateDeck(updater) {
     onUpdateAppData(data => ({ ...data, decks: { ...(data.decks || {}), [deckId]: { ...updater(deck), revision: Number(deck.revision || 0) + 1 } } }))
@@ -1015,7 +1063,7 @@ function SlidesPanel({ page, businessObject, onPresent, api, onUpdateAppData, on
     const frames = deck.slides.map(slide => api.getSceneElements().find(element => element.id === slide.id)).filter(Boolean)
     const right = frames.length ? Math.max(...frames.map(frame => frame.x + frame.width)) + 80 : 120
     const top = frames[0]?.y || 120
-    const result = createSlideForDeck({ deckId, x: right, y: top, order: deck.slides.length, ratio: deck.ratio, customWidth: deck.customWidth, customHeight: deck.customHeight, template: newTemplate })
+    const result = createSlideForDeck({ deckId, x: right, y: top, order: deck.slides.length, ratio: deck.ratio, customWidth: deck.customWidth, customHeight: deck.customHeight, template: newTemplate, language })
     api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...result.elements], appState: { selectedElementIds: { [result.slide.id]: true } }, captureUpdate: 'IMMEDIATELY' })
     api.scrollToContent(result.elements, { fitToContent: true, animate: true, maxZoom: 1.1 })
     updateDeck(value => ({ ...value, slides: [...value.slides, result.slide] }))
@@ -1024,14 +1072,14 @@ function SlidesPanel({ page, businessObject, onPresent, api, onUpdateAppData, on
     const frames = deck.slides.map(item => api.getSceneElements().find(element => element.id === item.id)).filter(Boolean)
     const right = Math.max(...frames.map(frame => frame.x + frame.width)) + 80
     const top = frames[0]?.y || 120
-    const result = duplicateSlideForDeck({ deckId, slide, elements: api.getSceneElements(), x: right, y: top, order: deck.slides.length, ratio: deck.ratio, customWidth: deck.customWidth, customHeight: deck.customHeight })
+    const result = duplicateSlideForDeck({ deckId, slide, elements: api.getSceneElements(), x: right, y: top, order: deck.slides.length, ratio: deck.ratio, customWidth: deck.customWidth, customHeight: deck.customHeight, language })
     api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...result.elements], appState: { selectedElementIds: { [result.slide.id]: true } }, captureUpdate: 'IMMEDIATELY' })
     api.scrollToContent(result.elements, { fitToContent: true, animate: true, maxZoom: 1.1 })
     updateDeck(value => ({ ...value, slides: [...value.slides, result.slide] }))
   }
   function removeSlide(slide) {
-    if (deck.slides.length === 1) return onToast('演示文稿至少保留一张幻灯片。', 'warning')
-    if (!window.confirm(`删除“${slide.name}”？`)) return
+    if (deck.slides.length === 1) return onToast(t('slides.keepOne'), 'warning')
+    if (!window.confirm(t('slides.delete', { name: slide.name }))) return
     const now = Date.now()
     api.updateScene({ elements: api.getSceneElementsIncludingDeleted().map(element => element.id === slide.id || element.frameId === slide.id ? { ...element, isDeleted: true, updated: now, version: Number(element.version || 1) + 1 } : element), captureUpdate: 'IMMEDIATELY' })
     updateDeck(value => ({ ...value, slides: value.slides.filter(item => item.id !== slide.id).map((item, order) => ({ ...item, order })) }))
@@ -1073,10 +1121,10 @@ function SlidesPanel({ page, businessObject, onPresent, api, onUpdateAppData, on
         files[`${String(index + 1).padStart(3, '0')}-${safeName(slide.name)}.png`] = new Uint8Array(await blob.arrayBuffer())
       }
       downloadBlob(new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' }), `${safeName(deck.title)}-png.zip`)
-      onToast('演示文稿 PNG 序列已导出。', 'success')
-    } catch (error) { onToast(`导出失败：${error.message}`, 'error') }
+      onToast(t('slides.exported'), 'success')
+    } catch (error) { onToast(t('toast.exportFailed', { message: error.message }), 'error') }
   }
-  return <div className="panel-body"><section className="deck-card"><span className="eyebrow">{deck.ratio === 'custom' ? `${deck.customWidth}:${deck.customHeight}` : deck.ratio}</span><input name="deck-title-editor" className="deck-title-input" defaultValue={deck.title} key={`${deck.id}:${deck.title}`} onBlur={event => renameDeck(event.target.value)} aria-label="演示文稿标题" /><p>{deck.slides.length} 张幻灯片 · revision {deck.revision}</p><div className="panel-actions"><button className="primary-button" onClick={() => onPresent(deck)}><Play size={16} />播放</button><button className="secondary-button" onClick={exportDeck}><Download size={16} />PNG 序列</button></div><div className="add-slide-row"><select name="new-slide-template" value={newTemplate} onChange={event => setNewTemplate(event.target.value)} aria-label="新幻灯片模板">{SLIDE_TEMPLATE_OPTIONS.filter(([value]) => value !== 'starter').map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button className="secondary-button" onClick={addSlide}><Plus size={16} />新增</button></div></section><div className="slide-list">{deck.slides.map((slide, index) => <div key={slide.id} className={slide.id === selectedSlideId ? 'active' : ''}><button className="slide-thumbnail" onClick={() => { const frame = api.getSceneElements().find(element => element.id === slide.id); if (frame) { api.updateScene({ appState: { selectedElementIds: { [frame.id]: true } } }); api.scrollToContent([frame], { fitToContent: true, animate: true }) } }} aria-label={`选择第 ${index + 1} 张幻灯片`}><span>{index + 1}</span><SlideThumbnail api={api} slide={slide} signature={slideSceneSignature(api, slide.id)} /></button><div className="slide-details"><input name={`slide-${index + 1}-name`} defaultValue={slide.name} key={`${slide.id}:${slide.name}`} onBlur={event => renameSlide(slide, event.target.value)} aria-label={`第 ${index + 1} 张幻灯片名称`} /><small>{slide.template || '自定义布局'}</small></div><div className="slide-actions"><button disabled={index === 0} onClick={() => moveSlide(index, -1)} aria-label="前移幻灯片">↑</button><button disabled={index === deck.slides.length - 1} onClick={() => moveSlide(index, 1)} aria-label="后移幻灯片">↓</button><button onClick={() => duplicateSlide(slide)} aria-label="复制幻灯片"><Copy size={13} /></button><button onClick={() => removeSlide(slide)} aria-label="删除幻灯片"><Trash2 size={13} /></button></div></div>)}</div></div>
+  return <div className="panel-body"><section className="deck-card"><span className="eyebrow">{deck.ratio === 'custom' ? `${deck.customWidth}:${deck.customHeight}` : deck.ratio}</span><input name="deck-title-editor" className="deck-title-input" defaultValue={deck.title} key={`${deck.id}:${deck.title}`} onBlur={event => renameDeck(event.target.value)} aria-label={t('slides.titleLabel')} /><p>{t('slides.countRevision', { count: deck.slides.length, revision: deck.revision })}</p><div className="panel-actions"><button className="primary-button" onClick={() => onPresent(deck)}><Play size={16} />{t('slides.play')}</button><button className="secondary-button" onClick={exportDeck}><Download size={16} />{t('slides.pngSequence')}</button></div><div className="add-slide-row"><select name="new-slide-template" value={newTemplate} onChange={event => setNewTemplate(event.target.value)} aria-label={t('slides.newTemplate')}>{slideTemplateOptions(language).filter(([value]) => value !== 'starter').map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button className="secondary-button" onClick={addSlide}><Plus size={16} />{t('slides.add')}</button></div></section><div className="slide-list">{deck.slides.map((slide, index) => <div key={slide.id} className={slide.id === selectedSlideId ? 'active' : ''}><button className="slide-thumbnail" onClick={() => { const frame = api.getSceneElements().find(element => element.id === slide.id); if (frame) { api.updateScene({ appState: { selectedElementIds: { [frame.id]: true } } }); api.scrollToContent([frame], { fitToContent: true, animate: true }) } }} aria-label={t('slides.select', { number: index + 1 })}><span>{index + 1}</span><SlideThumbnail api={api} slide={slide} signature={slideSceneSignature(api, slide.id)} /></button><div className="slide-details"><input name={`slide-${index + 1}-name`} defaultValue={slide.name} key={`${slide.id}:${slide.name}`} onBlur={event => renameSlide(slide, event.target.value)} aria-label={t('slides.name', { number: index + 1 })} /><small>{slide.template || t('slides.customLayout')}</small></div><div className="slide-actions"><button disabled={index === 0} onClick={() => moveSlide(index, -1)} aria-label={t('slides.moveEarlier')}>↑</button><button disabled={index === deck.slides.length - 1} onClick={() => moveSlide(index, 1)} aria-label={t('slides.moveLater')}>↓</button><button onClick={() => duplicateSlide(slide)} aria-label={t('slides.duplicate')}><Copy size={13} /></button><button onClick={() => removeSlide(slide)} aria-label={t('slides.deleteAction')}><Trash2 size={13} /></button></div></div>)}</div></div>
 }
 
 function SlideThumbnail({ api, slide, signature }) {
@@ -1101,6 +1149,7 @@ function SlideThumbnail({ api, slide, signature }) {
 }
 
 function TasksPanel({ tasks, onRefreshTasks, onProjectReload, onToast }) {
+  const { t } = useI18n()
   const [busyTaskId, setBusyTaskId] = useState('')
   async function resume(task) {
     if (!task.taskId) return
@@ -1110,22 +1159,24 @@ function TasksPanel({ tasks, onRefreshTasks, onProjectReload, onToast }) {
       if (state.status === 'success') {
         await finalizeImageTask(task.taskId)
         await onProjectReload()
-        onToast('任务结果已恢复并保存到画布。', 'success')
-      } else if (state.status === 'failed') onToast('任务已明确失败，不会重新提交。', 'error')
-      else onToast(`任务仍在${statusText(state.status)}，稍后可继续查询。`, 'info')
+        onToast(t('tasks.recovered'), 'success')
+      } else if (state.status === 'failed') onToast(t('tasks.failed'), 'error')
+      else onToast(t('tasks.still', { status: statusText(state.status, t) }), 'info')
       await onRefreshTasks()
     } catch (error) { onToast(error.message, 'error') } finally { setBusyTaskId('') }
   }
-  return <div className="panel-body"><div className="task-toolbar"><span>{tasks.length} 个操作</span><button className="icon-button" onClick={onRefreshTasks} aria-label="刷新任务" title="刷新任务"><RefreshCw size={16} /></button></div>{tasks.length === 0 ? <EmptyPanel icon={ListTodo} title="暂无图片任务" description="生成或编辑图片后，可在这里查看状态并恢复。" /> : <div className="task-list">{tasks.map(operation => <article key={operation.operationId}><div><strong>{operation.modelSlug}</strong><StatusBadge value={operation.status} /></div><small>{operation.operationId}</small><div className="task-resources">{operation.tasks.map(task => <div key={task.ordinal}><span>#{task.ordinal} {statusText(task.status)}</span>{task.taskId && !['cancelled', 'failed', 'finalized'].includes(task.status) && <button disabled={busyTaskId === task.taskId} onClick={() => resume(task)}>{busyTaskId === task.taskId ? <LoaderCircle size={12} className="spin" /> : <RefreshCw size={12} />}查询并恢复</button>}</div>)}</div></article>)}</div>}</div>
+  return <div className="panel-body"><div className="task-toolbar"><span>{t('tasks.operations', { count: tasks.length })}</span><button className="icon-button" onClick={onRefreshTasks} aria-label={t('tasks.refresh')} title={t('tasks.refresh')}><RefreshCw size={16} /></button></div>{tasks.length === 0 ? <EmptyPanel icon={ListTodo} title={t('tasks.emptyTitle')} description={t('tasks.emptyDescription')} /> : <div className="task-list">{tasks.map(operation => <article key={operation.operationId}><div><strong>{operation.modelSlug}</strong><StatusBadge value={operation.status} /></div><small>{operation.operationId}</small><div className="task-resources">{operation.tasks.map(task => <div key={task.ordinal}><span>#{task.ordinal} {statusText(task.status, t)}</span>{task.taskId && !['cancelled', 'failed', 'finalized'].includes(task.status) && <button disabled={busyTaskId === task.taskId} onClick={() => resume(task)}>{busyTaskId === task.taskId ? <LoaderCircle size={12} className="spin" /> : <RefreshCw size={12} />}{t('tasks.recover')}</button>}</div>)}</div></article>)}</div>}</div>
 }
 
 function PageBar({ pages, activePageId, onSwitch, onAdd, onDuplicate, onRename, onDelete, onMove, onReorder }) {
-  return <nav className="page-bar" aria-label="Canvas pages"><div className="page-scroll">{pages.map((page, index) => <PageTab key={page.id} page={page} index={index} count={pages.length} active={page.id === activePageId} onSwitch={onSwitch} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDelete} onMove={onMove} onReorder={onReorder} />)}</div><button className="add-page" onClick={onAdd}><Plus size={17} />新页面</button></nav>
+  const { t } = useI18n()
+  return <nav className="page-bar" aria-label="Canvas pages"><div className="page-scroll">{pages.map((page, index) => <PageTab key={page.id} page={page} index={index} count={pages.length} active={page.id === activePageId} onSwitch={onSwitch} onDuplicate={onDuplicate} onRename={onRename} onDelete={onDelete} onMove={onMove} onReorder={onReorder} />)}</div><button className="add-page" onClick={onAdd}><Plus size={17} />{t('pages.add')}</button></nav>
 }
 
 function PageTab({ page, index, count, active, onSwitch, onDuplicate, onRename, onDelete, onMove, onReorder }) {
+  const { t } = useI18n()
   const [menu, setMenu] = useState(false)
-  return <div className={`page-tab ${active ? 'active' : ''}`} draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/modellix-page-id', page.id) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={event => { event.preventDefault(); onReorder(event.dataTransfer.getData('text/modellix-page-id'), page.id) }}><button onClick={() => onSwitch(page.id)}><PageThumbnail page={page} /><span className="page-number">{index + 1}</span><span className="page-name">{page.name}</span></button><button className="page-menu" onClick={() => setMenu(value => !value)} aria-label="页面菜单" title="页面菜单"><MoreHorizontal size={15} /></button>{menu && <div className="dropdown page-dropdown"><button onClick={() => { onRename(page); setMenu(false) }}>重命名</button><button onClick={() => { onDuplicate(page); setMenu(false) }}><Copy size={14} />复制页面</button><button disabled={index === 0} onClick={() => { onMove(page, -1); setMenu(false) }}>向前移动</button><button disabled={index === count - 1} onClick={() => { onMove(page, 1); setMenu(false) }}>向后移动</button><button className="danger" onClick={() => { onDelete(page); setMenu(false) }}><Trash2 size={14} />删除页面</button></div>}</div>
+  return <div className={`page-tab ${active ? 'active' : ''}`} draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/modellix-page-id', page.id) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={event => { event.preventDefault(); onReorder(event.dataTransfer.getData('text/modellix-page-id'), page.id) }}><button onClick={() => onSwitch(page.id)}><PageThumbnail page={page} /><span className="page-number">{index + 1}</span><span className="page-name">{page.name}</span></button><button className="page-menu" onClick={() => setMenu(value => !value)} aria-label={t('pages.menu')} title={t('pages.menu')}><MoreHorizontal size={15} /></button>{menu && <div className="dropdown page-dropdown"><button onClick={() => { onRename(page); setMenu(false) }}>{t('pages.rename')}</button><button onClick={() => { onDuplicate(page); setMenu(false) }}><Copy size={14} />{t('pages.duplicate')}</button><button disabled={index === 0} onClick={() => { onMove(page, -1); setMenu(false) }}>{t('pages.moveEarlier')}</button><button disabled={index === count - 1} onClick={() => { onMove(page, 1); setMenu(false) }}>{t('pages.moveLater')}</button><button className="danger" onClick={() => { onDelete(page); setMenu(false) }}><Trash2 size={14} />{t('pages.delete')}</button></div>}</div>
 }
 
 function PageThumbnail({ page }) {
@@ -1149,6 +1200,7 @@ function PageThumbnail({ page }) {
 }
 
 function PresentationOverlay({ value, api, onChange, onClose }) {
+  const { t } = useI18n()
   const frame = value.frames[value.index]
   const [url, setUrl] = useState('')
   const dialogRef = useRef(null)
@@ -1169,17 +1221,17 @@ function PresentationOverlay({ value, api, onChange, onClose }) {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose, onChange])
-  return <div ref={dialogRef} className="presentation" role="dialog" aria-modal="true" aria-label="幻灯片播放" tabIndex={-1}><button className="presentation-close" onClick={onClose} aria-label="退出播放" title="退出播放（Esc）"><X size={20} /></button><div className="presentation-canvas">{url ? <img src={url} alt={`Slide ${value.index + 1}`} /> : <LoaderCircle className="spin" />}</div><div className="presentation-controls"><button disabled={value.index === 0} onClick={() => onChange({ ...value, index: value.index - 1 })}>上一页</button><span>{value.index + 1} / {value.frames.length}</span><button disabled={value.index === value.frames.length - 1} onClick={() => onChange({ ...value, index: value.index + 1 })}>下一页</button></div></div>
+  return <div ref={dialogRef} className="presentation" role="dialog" aria-modal="true" aria-label={t('slides.presentation')} tabIndex={-1}><button className="presentation-close" onClick={onClose} aria-label={t('slides.exit')} title={t('slides.exitTitle')}><X size={20} /></button><div className="presentation-canvas">{url ? <img src={url} alt={`Slide ${value.index + 1}`} /> : <LoaderCircle className="spin" />}</div><div className="presentation-controls"><button disabled={value.index === 0} onClick={() => onChange({ ...value, index: value.index - 1 })}>{t('slides.previous')}</button><span>{value.index + 1} / {value.frames.length}</span><button disabled={value.index === value.frames.length - 1} onClick={() => onChange({ ...value, index: value.index + 1 })}>{t('slides.next')}</button></div></div>
 }
 
 function EmptyPanel({ icon: Icon, title, description }) { return <div className="empty-panel"><div><Icon size={24} /></div><h3>{title}</h3><p>{description}</p></div> }
-function StatusBadge({ value }) { return <span className={`status-badge status-${value}`}>{statusText(value)}</span> }
+function StatusBadge({ value }) { const { t } = useI18n(); return <span className={`status-badge status-${value}`}>{statusText(value, t)}</span> }
 function Toast({ value }) { return <div className={`toast toast-${value.type}`} role={value.type === 'error' ? 'alert' : 'status'} aria-live={value.type === 'error' ? 'assertive' : 'polite'}>{value.type === 'error' || value.type === 'warning' ? <AlertTriangle size={17} /> : <Check size={17} />}{value.message}</div> }
 function BrandIcon({ className = '' }) { return <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fillRule="evenodd" clipRule="evenodd" d="M7.24776 2.14111C7.56867 2.18876 7.72758 2.81129 7.90712 3.10753C8.79035 4.56465 10.344 6.75443 11.4241 8.07286C11.4563 8.11206 12.4111 9.28371 14.2885 11.5878C10.3977 16.7247 7.94428 20.0667 6.92819 21.6137C6.44815 21.9052 5.82367 21.954 5.29133 21.9814C4.30723 22.0321 3.05888 21.9713 2.08765 21.8625C1.37577 21.7827 1.41062 21.2729 1.67039 20.7384C4.04588 17.649 6.7121 14.7744 9.04892 11.6535C7.95851 10.6355 7.11091 9.35171 6.14795 8.20582C5.67371 7.64153 3.95406 5.50583 3.39811 5.35456C2.96035 5.23553 2.30233 5.4273 2.15735 4.90055C2.13763 4.8288 2.05231 4.40561 2.05231 4.36772V2.14111H7.24776Z" fill="#605AFF"/><path fillRule="evenodd" clipRule="evenodd" d="M12.9937 7.06477C14.7553 5.02952 15.7433 3.42524 16.7497 2.12349C16.7838 2.08277 16.8918 2 16.929 2H22.0184C22.1772 2 22.1295 2.85601 22.1237 3.02424C22.1135 3.32296 22.0776 3.77732 22.0446 4.07611C22.0273 4.23304 21.8925 5.12806 21.8298 5.16962C21.2543 5.3187 20.3834 5.18751 19.8975 5.53394C19.7807 5.61721 18.6555 7.16611 15.7299 10.3091L12.9937 7.06477Z" fill="currentColor"/><path fillRule="evenodd" clipRule="evenodd" d="M12.9937 16.0059C15.2729 18.3659 16.5441 20.231 17.6255 21.6142C18.1055 21.9057 18.73 21.9545 19.2624 21.982C20.2464 22.0326 21.4948 21.9718 22.466 21.863C23.1779 21.7832 23.1431 21.2735 22.8833 20.7389C21.2996 18.6793 19.1614 16.4987 15.6502 12.9919L12.9937 16.0059Z" fill="currentColor"/></svg> }
-function LoadingScreen() { return <div className="loading-screen"><BrandIcon className="brand-icon" /><LoaderCircle className="spin" /><strong>正在打开 Modellix Agent Canvas</strong><span>加载项目、凭证与任务状态…</span></div> }
-function ErrorScreen({ message, onRetry }) { return <div className="loading-screen error"><AlertTriangle size={32} /><strong>画布无法打开</strong><span>{message}</span><button className="primary-button" onClick={onRetry}><RefreshCw size={16} />重新加载</button></div> }
+function LoadingScreen() { const { t } = useI18n(); return <div className="loading-screen"><BrandIcon className="brand-icon" /><LoaderCircle className="spin" /><strong>{t('loading.title')}</strong><span>{t('loading.detail')}</span></div> }
+function ErrorScreen({ message, onRetry }) { const { t } = useI18n(); return <div className="loading-screen error"><AlertTriangle size={32} /><strong>{t('error.canvasOpen')}</strong><span>{message}</span><button className="primary-button" onClick={onRetry}><RefreshCw size={16} />{t('error.reload')}</button></div> }
 
-async function pollAndFinalize(taskId, onProgress) {
+async function pollAndFinalize(taskId, onProgress, t) {
   const started = Date.now()
   let retryDelay = 2500
   while (Date.now() - started < 30 * 60 * 1000) {
@@ -1187,19 +1239,19 @@ async function pollAndFinalize(taskId, onProgress) {
       // eslint-disable-next-line no-await-in-loop
       const task = await getImageTask(taskId)
       retryDelay = 2500
-      onProgress(`任务 ${taskId.slice(0, 10)}… ${statusText(task.status)}`)
+      onProgress(t('tasks.progress', { id: taskId.slice(0, 10), status: statusText(task.status, t) }))
       if (task.status === 'success') return finalizeImageTask(taskId)
-      if (task.status === 'failed' || task.status === 'cancelled') throw new Error(`图片任务 ${taskId} ${task.status === 'cancelled' ? '已取消' : '失败'}。`)
+      if (task.status === 'failed' || task.status === 'cancelled') throw new Error(t('tasks.explicitFailure', { id: taskId, status: statusText(task.status, t) }))
     } catch (error) {
       if (!error.retryable && !['RATE_LIMITED', 'DOWNLOAD_FAILED'].includes(error.code)) throw error
       retryDelay = Math.min(15000, Math.round(retryDelay * 1.7))
-      onProgress(`任务查询暂时失败，将在 ${Math.ceil(retryDelay / 1000)} 秒后继续。`)
+      onProgress(t('tasks.retry', { seconds: Math.ceil(retryDelay / 1000) }))
     }
     const jitter = Math.round(retryDelay * (0.85 + Math.random() * 0.3))
     // eslint-disable-next-line no-await-in-loop
     await new Promise(resolve => window.setTimeout(resolve, jitter))
   }
-  throw new Error('图片任务查询超时，可在任务中心继续恢复。')
+  throw new Error(t('tasks.timeout'))
 }
 
 function emptyPage(id, name) {
@@ -1207,7 +1259,7 @@ function emptyPage(id, name) {
   return { schemaVersion: 1, id, name, elements: [], files: {}, appState: { viewBackgroundColor: '#F7F8F8', currentItemRoughness: 0, selectedElementIds: {}, zoom: { value: 1 }, scrollX: 0, scrollY: 0 }, appData: { htmlDrafts: {}, decks: {} }, createdAt: now, updatedAt: now }
 }
 
-function duplicatePageData(page) {
+function duplicatePageData(page, t) {
   const clone = structuredClone(page)
   const pageId = `page_${crypto.randomUUID().replaceAll('-', '')}`
   const idMap = new Map(clone.elements.map(element => [element.id, modelId(element.type || 'el')]))
@@ -1239,7 +1291,7 @@ function duplicatePageData(page) {
     }]
   }))
   clone.id = pageId
-  clone.name = `${page.name} Copy`
+  clone.name = `${page.name} ${t('pages.copySuffix')}`
   clone.appState.selectedElementIds = {}
   return clone
 }
@@ -1269,7 +1321,7 @@ function sanitizeInlineCss(value) {
   return String(value).replace(/@import[^;]+;/giu, '').replace(/url\((?!["']?(?:data:|blob:))[^)]+\)/giu, 'none')
 }
 
-async function captureHtmlDraft(source) {
+async function captureHtmlDraft(source, t) {
   const parsed = new DOMParser().parseFromString(source, 'text/html')
   parsed.querySelectorAll('script,iframe,object,embed,link,base,form').forEach(node => node.remove())
   parsed.querySelectorAll('*').forEach(node => {
@@ -1294,17 +1346,17 @@ async function captureHtmlDraft(source) {
   document.body.append(root)
   try {
     const canvas = await html2canvas(root, { width: 960, height: 540, scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: false, allowTaint: false })
-    return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('浏览器未能生成截图。')), 'image/png'))
+    return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error(t('error.screenshot'))), 'image/png'))
   } finally {
     root.remove()
   }
 }
 
-function blobToDataUrl(blob) {
+function blobToDataUrl(blob, t) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error || new Error('文件读取失败。'))
+    reader.onerror = () => reject(reader.error || new Error(t('error.fileRead')))
     reader.readAsDataURL(blob)
   })
 }
@@ -1375,21 +1427,25 @@ function closestCanvasImageSize(width, height) {
     .sort((left, right) => left.distance - right.distance)[0]?.value || '1024x1024'
 }
 
-function formatOutputSpec(output = {}, count = 1) {
-  const parts = [output?.size || '由模型决定', `${count} 张`]
-  if (output?.background === 'transparent') parts.push('透明背景')
-  if (output?.quality && output.quality !== 'not_applicable') parts.push(`质量 ${output.quality}`)
+function sizeOptionLabel([, label, ratio], t) {
+  return ratio ? t(label, { ratio }) : label
+}
+
+function formatOutputSpec(output = {}, count = 1, t) {
+  const parts = [output?.size || t('output.modelDecides'), t('output.images', { count })]
+  if (output?.background === 'transparent') parts.push(t('output.transparent'))
+  if (output?.quality && output.quality !== 'not_applicable') parts.push(t('output.quality', { quality: output.quality }))
   return parts.join(' · ')
 }
 
-function formatExpiry(value) {
-  if (!value) return '短时有效'
+function formatExpiry(value, language, t) {
+  if (!value) return t('output.shortLived')
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '短时有效' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return Number.isNaN(date.getTime()) ? t('output.shortLived') : date.toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-function panelTitle(panel) { return ({ ai: '图片生成与编辑', html: 'HTML 草稿', slides: '演示文稿', tasks: '任务中心' })[panel] || '属性' }
-function routeReason(code) { return ({ DEFAULT_OPAQUE_GENERATE: '普通图片生成', TRANSPARENT_GENERATE: '透明背景生成', DEFAULT_SINGLE_EDIT: '单图标准编辑', TRANSPARENT_OR_STRICT_EDIT: '透明或严格保真编辑', MULTI_REFERENCE_STANDARD_EDIT: '多参考图标准编辑', MULTI_REFERENCE_HIGH_RES_EDIT: '多参考图高分辨率编辑' })[code] || code }
-function statusText(value) { return ({ preparing: '准备中', submitting: '提交中', submitted: '已提交', pending: '排队中', processing: '生成中', success: '已完成', cancelled: '已取消', failed: '失败', finalized: '已保存', active: '进行中', needs_attention: '需要处理', submission_unknown: '提交状态未知' })[value] || value }
+function panelTitle(panel, t) { return t(`panel.${panel === 'ai' || panel === 'html' || panel === 'slides' || panel === 'tasks' ? panel : 'properties'}`) }
+function routeReason(code, t) { const translated = t(`route.${code}`); return translated === `route.${code}` ? code : translated }
+function statusText(value, t) { const translated = t(`status.${value}`); return translated === `status.${value}` ? value : translated }
 function safeName(value) { return String(value || 'canvas').replace(/[\\/:*?"<>|]/gu, '-').slice(0, 100) }
 function downloadBlob(blob, fileName) { const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = fileName; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000) }

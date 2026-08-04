@@ -5,7 +5,7 @@ Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服�
 任意宿主都可以用以下命令检查 Node.js、运行依赖、内置 Widget 和包版本：
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --doctor
+npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas --doctor
 ```
 
 ## 安装前检查
@@ -15,7 +15,7 @@ npx -y --package @modellix/agent-canvas@0.1.9 modellix-agent-canvas --doctor
 - 可访问 `https://api.modellix.ai` 和 `https://registry.npmjs.org`
 - 一个可用的 [Modellix API Key](https://www.modellix.ai/console/api-key)
 
-安装配置不得包含 API Key。首次连接后直接在 Canvas 凭证卡片的隔离输入框中配置。
+安装配置不得包含 API Key。首次连接后直接在 Canvas 凭证卡片的隔离输入框中配置。Canvas 默认英语，可通过右上角在英语、简体中文和日语之间切换，凭证输入框会同步使用所选语言。
 
 ## Codex
 
@@ -55,7 +55,7 @@ Cursor Directory 是独立的社区目录，会从仓库的 `.plugin/plugin.json
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -94,7 +94,7 @@ claude plugin install modellix-agent-canvas@modellix
     "servers": {
       "modellix-agent-canvas": {
         "type": "local",
-        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
         "cwd": "."
       }
     }
@@ -114,7 +114,7 @@ claude plugin install modellix-agent-canvas@modellix
   "args": [
     "-y",
     "--package",
-    "@modellix/agent-canvas@0.1.9",
+    "@modellix/agent-canvas@0.1.10",
     "modellix-agent-canvas",
     "--host",
     "generic",
