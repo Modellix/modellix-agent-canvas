@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "modellix-agent-canvas": {
+      "command": "npx",
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "claude-code", "--supports-mcp-apps", "false", "--project-dir", "${CLAUDE_PROJECT_DIR}"],
+      "env": {
+        "MODELLIX_PLUGIN_DATA": "${CLAUDE_PLUGIN_DATA}"
+      }
+    }
+  }
+}

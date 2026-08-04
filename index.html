@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A local-first infinite canvas for visual creation, image workflows, HTML drafts, and presentations." />
+    <link rel="icon" href="/modellix-icon.svg" type="image/svg+xml" />
+    <title>Modellix Agent Canvas</title>
+    <script type="module">
+      // Zod otherwise probes `new Function()` even when strict CSP catches it.
+      // Preconfigure its shared global before any bundled module is evaluated.
+      globalThis.__zod_globalConfig = {
+        ...(globalThis.__zod_globalConfig || {}),
+        jitless: true,
+      }
+
+      // Excalidraw falls back to a public CDN for its optional drawing fonts.
+      // Canvas is deliberately local-only, so map those faces to installed system fonts.
+      const NativeFontFace = window.FontFace
+      if (typeof NativeFontFace === 'function') {
+        function LocalFirstFontFace(family, source, descriptors) {
+          const safeSource = typeof source === 'string' && source.includes('esm.sh/@excalidraw/excalidraw@')
+            ? 'local("Arial"), local("DejaVu Sans"), local("Noto Sans")'
+            : source
+          return new NativeFontFace(family, safeSource, descriptors)
+        }
+        Object.setPrototypeOf(LocalFirstFontFace, NativeFontFace)
+        LocalFirstFontFace.prototype = NativeFontFace.prototype
+        window.FontFace = LocalFirstFontFace
+      }
+    </script>
+  </head>
+  <body data-app="modellix-agent-canvas">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "modellix",
+  "owner": {
+    "name": "Modellix",
+    "email": "support@modellix.ai"
+  },
+  "metadata": {
+    "description": "Official Modellix plugins for AI development applications."
+  },
+  "plugins": [
+    {
+      "name": "modellix-agent-canvas",
+      "description": "Create and edit visual projects through Modellix on a workspace-bound local canvas.",
+      "version": "0.1.9",
+      "source": {
+        "source": "npm",
+        "package": "@modellix/agent-canvas",
+        "version": "0.1.9",
+        "registry": "https://registry.npmjs.org"
+      },
+      "mcpServers": "./.mcp.claude.json",
+      "category": "Productivity",
+      "tags": ["modellix", "canvas", "mcp", "image-generation", "image-editing"]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Keep shell scripts runnable by bash on Windows checkouts.
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Generated single-file Widget contains upstream shader/template whitespace.
+mcp/static/canvas.html -whitespace

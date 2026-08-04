@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "modellix-agent-canvas": {
+      "title": "Modellix Agent Canvas MCP",
+      "description": "Workspace-bound Canvas, Modellix image tasks, and secure modellix-cli credentials.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "--package",
+        "@modellix/agent-canvas@0.1.9",
+        "modellix-agent-canvas",
+        "--host",
+        "cursor",
+        "--supports-mcp-apps",
+        "true"
+      ]
+    }
+  }
+}

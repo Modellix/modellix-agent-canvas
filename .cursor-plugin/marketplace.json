@@ -1,0 +1,17 @@
+{
+  "name": "modellix",
+  "owner": {
+    "name": "Modellix",
+    "email": "support@modellix.ai"
+  },
+  "metadata": {
+    "description": "Official Modellix plugins for Cursor."
+  },
+  "plugins": [
+    {
+      "name": "modellix-agent-canvas",
+      "source": "./",
+      "description": "Create and edit visual projects through Modellix on a workspace-bound local canvas."
+    }
+  ]
+}

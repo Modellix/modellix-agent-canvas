@@ -1,0 +1,48 @@
+{
+  "id": "modellix-agent-canvas",
+  "name": "modellix-agent-canvas",
+  "version": "0.1.9",
+  "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
+  "author": {
+    "name": "Modellix",
+    "email": "support@modellix.ai",
+    "url": "https://www.modellix.ai"
+  },
+  "homepage": "https://www.modellix.ai",
+  "repository": "https://github.com/Modellix/modellix-agent-canvas",
+  "license": "MIT",
+  "keywords": [
+    "modellix",
+    "canvas",
+    "mcp-apps",
+    "image-generation",
+    "image-editing"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.codex.json",
+  "interface": {
+    "displayName": "Modellix Agent Canvas",
+    "shortDescription": "Create and edit images through Modellix in compatible MCP applications.",
+    "longDescription": "Modellix Agent Canvas is a general-purpose local stdio MCP plugin for compatible AI applications. Codex, Cursor, Claude Code, and OpenCode are verified hosts. Applications with MCP Apps support can embed the Excalidraw-powered canvas; other compatible hosts can use the same tools and the restricted local-web canvas.",
+    "developerName": "Modellix",
+    "category": "Productivity",
+    "websiteURL": "https://www.modellix.ai",
+    "privacyPolicyURL": "https://www.modellix.ai/privacy",
+    "termsOfServiceURL": "https://www.modellix.ai/service-policy",
+    "brandColor": "#605AFF",
+    "logo": "./assets/modellix-icon.svg",
+    "composerIcon": "./assets/modellix-icon.svg",
+    "capabilities": [
+      "Interactive infinite canvas",
+      "Modellix image generation and editing",
+      "Automatic approved-model routing",
+      "Secure API-key persistence",
+      "Paid-task recovery and local persistence"
+    ],
+    "defaultPrompt": [
+      "Open Modellix Agent Canvas for this project.",
+      "Generate an image in the selected AI image holder through Modellix.",
+      "Apply my canvas annotations through Modellix and place the result beside the original."
+    ]
+  }
+}

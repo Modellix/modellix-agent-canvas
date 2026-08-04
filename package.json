@@ -1,0 +1,107 @@
+{
+  "name": "@modellix/agent-canvas",
+  "version": "0.1.9",
+  "mcpName": "io.github.modellix/agent-canvas",
+  "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
+  "author": {
+    "name": "Modellix",
+    "email": "support@modellix.ai",
+    "url": "https://www.modellix.ai"
+  },
+  "type": "module",
+  "bin": {
+    "agent-canvas": "scripts/start-mcp.mjs",
+    "modellix-agent-canvas": "scripts/start-mcp.mjs"
+  },
+  "files": [
+    ".plugin",
+    ".codex-plugin",
+    ".cursor-plugin",
+    ".claude-plugin",
+    ".agents",
+    "adapters",
+    "assets",
+    "docs",
+    "mcp",
+    "scripts/start-mcp.mjs",
+    "skills",
+    ".mcp.json",
+    ".mcp.codex.json",
+    ".mcp.claude.json",
+    "mcp.json",
+    "server.json",
+    "LICENSE",
+    "THIRD_PARTY_LICENSES",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Modellix/modellix-agent-canvas#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Modellix/modellix-agent-canvas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Modellix/modellix-agent-canvas/issues"
+  },
+  "keywords": [
+    "modellix",
+    "mcp",
+    "mcp-apps",
+    "canvas",
+    "image-generation",
+    "image-editing",
+    "codex",
+    "cursor",
+    "claude-code",
+    "opencode"
+  ],
+  "overrides": {
+    "esbuild": "0.28.1",
+    "lodash-es": "4.18.1",
+    "nanoid": "3.3.16"
+  },
+  "scripts": {
+    "check": "node ./scripts/check-syntax.mjs",
+    "check:licenses": "node ./scripts/check-licenses.mjs",
+    "check:plugin": "node ./scripts/validate-plugin.mjs",
+    "sync:skills": "node ./scripts/sync-skills.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "build:widget": "node ./scripts/build-widget.mjs",
+    "preview": "vite preview",
+    "doctor": "node ./scripts/start-mcp.mjs --doctor",
+    "probe:mcp": "node ./scripts/probe-mcp.mjs",
+    "smoke:package": "node ./scripts/smoke-package.mjs",
+    "test": "node --test",
+    "quality": "npm run sync:skills && npm run check && npm run check:licenses && npm run check:plugin && npm test && npm run build && npm run build:widget && npm run probe:mcp",
+    "prepack": "npm run quality"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.4",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "image-size": "^2.0.2",
+    "modellix-cli": "0.0.8",
+    "proper-lockfile": "4.1.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "fflate": "^0.8.3",
+    "html2canvas": "^1.4.1",
+    "lucide-react": "^1.24.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "7.3.6"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "license": "MIT"
+}

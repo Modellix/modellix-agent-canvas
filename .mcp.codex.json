@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "modellix-agent-canvas": {
+      "command": "npx",
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.9", "modellix-agent-canvas", "--host", "codex", "--supports-mcp-apps", "true"]
+    }
+  }
+}

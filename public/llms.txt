@@ -1,0 +1,5 @@
+# Modellix Agent Canvas
+
+This is a local-first interactive application. Use its MCP tools and accessibility tree rather than crawling the page.
+
+- [Modellix documentation](https://docs.modellix.ai/get-started)
