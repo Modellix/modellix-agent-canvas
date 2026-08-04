@@ -1,6 +1,6 @@
 {
   "name": "modellix-agent-canvas",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "A general-purpose local stdio MCP canvas using Modellix for image generation and editing.",
   "author": {
     "name": "Modellix",

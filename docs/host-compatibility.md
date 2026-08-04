@@ -19,15 +19,16 @@ Do not interpret protocol validation as proof that every future host version ren
 | --- | --- | --- | --- |
 | Codex | Plugins use `.codex-plugin/plugin.json`; local MCP servers and MCP Apps resources can be packaged in a plugin; the open skill supplies the active project as validated `workspacePath` | `.codex-plugin/plugin.json`, `.mcp.codex.json` | MCP Apps Widget; fallback remains available |
 | Cursor 2.6+ | Cursor 2.6 introduced MCP Apps in Agent chat; plugins can package MCP configuration; personal and local Marketplace imports use a Cursor-specific root catalog | `.cursor-plugin/marketplace.json`, `.cursor-plugin/plugin.json`, `mcp.json` | MCP Apps |
-| Claude Code | Plugin MCP servers use a root `.mcp.json`; the adapter starts the pinned npm runtime and passes `${CLAUDE_PROJECT_DIR}` while preserving `${CLAUDE_PLUGIN_DATA}` | `.claude-plugin/plugin.json`, `.mcp.claude.json` | local fallback because the referenced terminal documentation does not promise MCP Apps rendering |
-| OpenCode V2 | Local MCP servers live under `mcp.servers`, use a command array, optional `cwd`/`environment`, and stdio | `adapters/opencode/opencode.json`, `.agents/skills` | local fallback until MCP Apps is documented and smoke-tested |
+| Claude Code | The plugin manifest explicitly selects `.mcp.claude.json`, so Claude does not fall back to the vendor-neutral root `.mcp.json`; the adapter starts the pinned npm runtime and passes `${CLAUDE_PROJECT_DIR}` while preserving `${CLAUDE_PLUGIN_DATA}` | `.claude-plugin/plugin.json`, `.mcp.claude.json` | local fallback because the referenced terminal documentation does not promise MCP Apps rendering |
+| OpenCode | Stable local MCP servers live directly under `mcp.<server>`, use a command array, optional `cwd`/`environment`, and stdio | `adapters/opencode/opencode.json`, `.agents/skills` | local fallback until MCP Apps is documented and smoke-tested |
+| OpenCode V2 beta | V2 beta local MCP servers live under `mcp.servers` | `adapters/opencode/opencode-v2.json`, `.agents/skills` | local fallback until MCP Apps is documented and smoke-tested |
 
 Official references:
 
 - Codex: [Build plugins](https://developers.openai.com/plugins/build/plugins), [MCP Apps UI](https://developers.openai.com/plugins/build/chatgpt-ui)
 - Cursor: [Cursor 2.6 MCP Apps release](https://cursor.com/changelog/2-6)
 - Claude Code: [MCP](https://code.claude.com/docs/en/mcp), [Plugins reference](https://code.claude.com/docs/en/plugins-reference)
-- OpenCode: [MCP servers](https://opencode.ai/v2/docs/mcp-servers), [Skills](https://opencode.ai/v2/docs/skills)
+- OpenCode: [stable MCP servers](https://opencode.ai/docs/mcp-servers/), [stable configuration](https://opencode.ai/docs/config/), [V2 beta MCP servers](https://opencode.ai/v2/docs/mcp-servers)
 
 ## Shared acceptance contract
 
@@ -50,7 +51,7 @@ Only `open_modellix_canvas` is associated with `ui://modellix-agent-canvas/canva
 - Codex: the open skill passes the host's active project root as `workspacePath`; MCP Roots or explicit `--project-dir` remain compatible alternatives.
 - Cursor: the maintained plugin template uses MCP Roots, which Cursor officially supports, and does not depend on `${workspaceFolder}` interpolation.
 - Claude Code: the plugin template passes `${CLAUDE_PROJECT_DIR}` and starts the same pinned npm runtime as the other hosts, so Marketplace extraction never needs to provide `node_modules`.
-- OpenCode: `cwd: "."` resolves from the workspace according to the V2 configuration contract.
+- OpenCode: `cwd: "."` resolves from the workspace in both the stable and V2 beta adapters.
 
 The server canonicalizes this root once. A data tool cannot replace it with an arbitrary path, and switching projects requires a new MCP process.
 
@@ -64,7 +65,7 @@ The server canonicalizes this root once. A data tool cannot replace it with an a
 
 ## OpenCode tool names
 
-OpenCode V2 normalizes MCP tools as `<server>_<tool>`. For the maintained server name, a tool such as `open_modellix_canvas` may therefore be presented as `modellix-agent-canvas_open_modellix_canvas`. Skills should refer to the semantic tool name and let the host apply its prefix.
+OpenCode normalizes MCP tools as `<server>_<tool>`. For the maintained server name, a tool such as `open_modellix_canvas` may therefore be presented as `modellix-agent-canvas_open_modellix_canvas`. Skills should refer to the semantic tool name and let the host apply its prefix.
 
 ## Release evidence
 

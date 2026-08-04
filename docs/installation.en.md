@@ -5,7 +5,7 @@ Modellix Agent Canvas is a local `stdio` MCP plugin and does not require a deplo
 To diagnose Node.js, runtime dependencies, the bundled Widget, and package version on any host, run:
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.10 modellix-agent-canvas --doctor
+npx -y --package @modellix/agent-canvas@0.1.11 modellix-agent-canvas --doctor
 ```
 
 ## Requirements
@@ -40,7 +40,7 @@ For a personal Marketplace from GitHub or a local checkout, open **Customize →
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.11", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -59,7 +59,7 @@ claude plugin install modellix-agent-canvas@modellix
 
 Run `/reload-plugins`, then `/mcp`. The adapter binds `${CLAUDE_PROJECT_DIR}` and starts the same pinned npm runtime used by Codex, Cursor, and OpenCode. This ensures production dependencies are installed even when the Marketplace cache contains only plugin files. It does not store an API Key in plugin configuration.
 
-## OpenCode V2
+## OpenCode
 
 Merge this server into the project's `opencode.json`:
 
@@ -67,18 +67,17 @@ Merge this server into the project's `opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "servers": {
-      "modellix-agent-canvas": {
-        "type": "local",
-        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
-        "cwd": "."
-      }
+    "modellix-agent-canvas": {
+      "type": "local",
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.11", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "cwd": ".",
+      "enabled": true
     }
   }
 }
 ```
 
-Restart OpenCode. It may expose a tool as `modellix-agent-canvas_<tool>` and uses the short-lived local page for the full canvas.
+OpenCode V2 beta uses the nested `mcp.servers` shape instead; copy `adapters/opencode/opencode-v2.json` for that channel. Restart OpenCode after adding the appropriate adapter. The pinned npm command installs and launches the complete runtime automatically, so users do not need a separate global CLI installation. OpenCode may expose a tool as `modellix-agent-canvas_<tool>` and uses the short-lived local page for the full canvas.
 
 ## Other stdio MCP hosts
 
@@ -87,7 +86,7 @@ Configure the host to run:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.10", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
+  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.11", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
 }
 ```
 

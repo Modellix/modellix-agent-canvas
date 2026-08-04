@@ -43,6 +43,7 @@ try {
     ".mcp.json",
     ".mcp.codex.json",
     "adapters/opencode/opencode.json",
+    "adapters/opencode/opencode-v2.json",
     "mcp/static/canvas.html",
     "mcp.json",
     "server.json",

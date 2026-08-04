@@ -10,6 +10,7 @@ const openManifestPath = path.join(root, ".plugin", "plugin.json");
 const openRaw = await readFile(openManifestPath, "utf8");
 const openManifest = JSON.parse(openRaw);
 const cursorManifest = JSON.parse(await readFile(path.join(root, ".cursor-plugin", "plugin.json"), "utf8"));
+const claudeManifest = JSON.parse(await readFile(path.join(root, ".claude-plugin", "plugin.json"), "utf8"));
 const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 const server = JSON.parse(await readFile(path.join(root, "server.json"), "utf8"));
 const codexMarketplace = JSON.parse(await readFile(path.join(root, ".agents", "plugins", "marketplace.json"), "utf8"));
@@ -22,6 +23,7 @@ const adapters = await Promise.all([
   ".mcp.claude.json",
 ].map(async (file) => [file, JSON.parse(await readFile(path.join(root, file), "utf8"))]));
 const openCodeAdapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode.json"), "utf8"));
+const openCodeV2Adapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode-v2.json"), "utf8"));
 const expectedNpxArgs = ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"];
 
 requiredString(manifest.name, "name");
@@ -37,6 +39,12 @@ if (openManifest.name !== manifest.name || openManifest.version !== pkg.version)
 }
 if (cursorManifest.name !== manifest.name || cursorManifest.version !== pkg.version) {
   throw new Error("Cursor plugin manifest identity is out of sync.");
+}
+if (claudeManifest.name !== manifest.name || claudeManifest.version !== pkg.version) {
+  throw new Error("Claude plugin manifest identity is out of sync.");
+}
+if (claudeManifest.mcpServers !== "./.mcp.claude.json") {
+  throw new Error("Claude plugin must explicitly select its Claude-specific MCP adapter instead of auto-discovering .mcp.json.");
 }
 if (cursorManifest.skills !== "./skills/" || cursorManifest.mcpServers !== "./mcp.json") {
   throw new Error("Cursor plugin must declare its canonical skills and Cursor MCP adapter.");
@@ -64,15 +72,23 @@ if (!claudeMarketplaceEntry) throw new Error(`Claude marketplace is missing ${ma
 if (claudeMarketplaceEntry.source?.package !== pkg.name || claudeMarketplaceEntry.source?.version !== pkg.version) {
   throw new Error("Claude marketplace npm source is out of sync.");
 }
+if (claudeMarketplaceEntry.mcpServers !== claudeManifest.mcpServers) {
+  throw new Error("Claude marketplace and plugin manifest must select the same MCP adapter.");
+}
+await assertRelativeFileOrDirectory(claudeManifest.mcpServers, "claudePlugin.mcpServers");
 for (const [file, adapter] of adapters) {
   const serverConfig = adapter.mcpServers?.["modellix-agent-canvas"];
   if (serverConfig?.command !== "npx" || !samePrefix(serverConfig.args, expectedNpxArgs)) {
     throw new Error(`${file} must explicitly select the complete pinned npm runtime and executable through npx.`);
   }
 }
-const openCodeCommand = openCodeAdapter.mcp?.servers?.["modellix-agent-canvas"]?.command;
+const openCodeCommand = openCodeAdapter.mcp?.["modellix-agent-canvas"]?.command;
 if (openCodeCommand?.[0] !== "npx" || !samePrefix(openCodeCommand.slice(1), expectedNpxArgs)) {
-  throw new Error("OpenCode must explicitly select the complete pinned npm runtime and executable through npx.");
+  throw new Error("OpenCode stable must explicitly select the complete pinned npm runtime and executable through npx.");
+}
+const openCodeV2Command = openCodeV2Adapter.mcp?.servers?.["modellix-agent-canvas"]?.command;
+if (openCodeV2Command?.[0] !== "npx" || !samePrefix(openCodeV2Command.slice(1), expectedNpxArgs)) {
+  throw new Error("OpenCode V2 must explicitly select the complete pinned npm runtime and executable through npx.");
 }
 requiredString(cursorMarketplace.name, "cursorMarketplace.name");
 requiredString(cursorMarketplace.owner?.name, "cursorMarketplace.owner.name");

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "modellix-agent-canvas": {
+        "type": "local",
+        "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.11", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+        "cwd": "."
+      }
+    }
+  }
+}
