@@ -1,6 +1,6 @@
 {
   "name": "modellix-agent-canvas",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "A general-purpose local stdio MCP canvas using Modellix, with a secure local-web fallback.",
   "author": { "name": "Modellix" },
   "license": "MIT",

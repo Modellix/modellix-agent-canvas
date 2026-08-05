@@ -93,6 +93,7 @@ test("project storage externalizes images, hydrates them, and rejects stale revi
     project.pages[0].appData.htmlDrafts = {
       obj_html_test: { title: "Draft", entryFile: "index.html", revision: 3, source: "<!doctype html><h1>External HTML source</h1>" },
     };
+    project.settings.libraryItems = [{ id: "library_test", status: "published", created: Date.now(), elements: [project.pages[0].elements[0]] }];
     const saved = await store.saveProject(project);
     assert.equal(saved.revision, 2);
     const hydrated = await store.readProject({ hydrateFiles: true });
@@ -100,6 +101,7 @@ test("project storage externalizes images, hydrates them, and rejects stale revi
     assert.match(hydrated.pages[0].files.file_test.dataURL, /^data:image\/png;base64,/u);
     assert.match(hydrated.pages[0].files.file_test.assetPath, /^assets\/images\//u);
     assert.equal(hydrated.pages[0].appData.htmlDrafts.obj_html_test.source, "<!doctype html><h1>External HTML source</h1>");
+    assert.equal(hydrated.settings.libraryItems[0].id, "library_test");
     const rawPage = await readFile(path.join(root, ".modellix", "canvas", "pages", `${pageId}.json`), "utf8");
     assert.doesNotMatch(rawPage, /External HTML source/u);
     assert.match(rawPage, /assets\/html\/obj_html_test\/index\.html/u);
@@ -111,6 +113,9 @@ test("project storage externalizes images, hydrates them, and rejects stale revi
     const wrongSchema = await store.readProject({ hydrateFiles: true });
     wrongSchema.schemaVersion = 99;
     await assert.rejects(() => store.saveProject(wrongSchema), (error) => error.code === "INPUT_INVALID");
+    const oversizedLibrary = await store.readProject({ hydrateFiles: true });
+    oversizedLibrary.settings.libraryItems = Array.from({ length: 201 }, (_, index) => ({ id: `library_${index}`, elements: [] }));
+    await assert.rejects(() => store.saveProject(oversizedLibrary), (error) => error.code === "INPUT_INVALID");
     const fitProject = await store.readProject({ hydrateFiles: true });
     fitProject.pages[0].elements.push({
       id: "holder_fit", type: "rectangle", x: 100, y: 200, width: 400, height: 200, angle: 0,
@@ -284,6 +289,7 @@ test("local fallback uses loopback, one-time bootstrap, strict cookie, Host and 
     assert.equal(bootstrap.status, 303);
     const cookie = bootstrap.headers.get("set-cookie");
     assert.match(cookie, /HttpOnly; SameSite=Strict/u);
+    assert.doesNotMatch(cookie, /Max-Age/u);
     const origin = new URL(openUrl).origin;
     const sessionCookie = cookie.split(";", 1)[0];
     const page = await fetch(`${origin}/`, { headers: { cookie: sessionCookie } });

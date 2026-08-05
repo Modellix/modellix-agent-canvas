@@ -53,6 +53,17 @@ const statusOutputSchema = {
 };
 
 const taskSummarySchema = z.object({ ordinal: z.number().int().positive(), taskId: z.string().nullable(), status: z.string() }).passthrough();
+const errorOutputSchema = z.object({
+  ok: z.literal(false),
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+    recoveryActions: z.array(z.string()),
+    retryable: z.boolean(),
+    nextAction: z.string(),
+    details: z.record(z.string(), z.unknown()).optional(),
+  }).passthrough(),
+}).passthrough();
 
 export function registerModellixTools(server, options) {
   const { context, service, taskStore, localWeb, projectStore } = options;
@@ -143,7 +154,7 @@ export function registerModellixTools(server, options) {
     title: "Open Modellix Agent Canvas",
     description: "Open the workspace-bound Canvas. MCP Apps hosts receive the embedded app; other compatible MCP hosts receive a short-lived loopback URL.",
     inputSchema: { pageId: id.optional(), workspacePath },
-    outputSchema: { ok: z.boolean(), workspaceId: z.string(), pageId: z.string().nullable(), mode: z.enum(["mcp-app", "local-web"]), localUrl: z.string().url().optional(), widget: z.string().optional(), preferredDisplayMode: z.string().optional() },
+    outputSchema: withErrorOutputSchema({ ok: z.boolean(), workspaceId: z.string(), pageId: z.string().nullable(), mode: z.enum(["mcp-app", "local-web"]), localUrl: z.string().url().optional(), widget: z.string().optional(), preferredDisplayMode: z.string().optional() }),
     annotations: readOnlyAnnotations,
     _meta: {
       ui: { resourceUri: MODELLIX_WIDGET_URI, visibility: ["model", "app"] },
@@ -229,12 +240,26 @@ export function registerModellixTools(server, options) {
 }
 
 function register(server, name, definition, handler) {
-  server.registerTool(name, definition, async (input = {}) => {
+  server.registerTool(name, { ...definition, outputSchema: withErrorOutputSchema(definition.outputSchema) }, async (input = {}) => {
     try {
       return successResult(`${definition.title} completed.`, await handler(input));
     } catch (error) {
       return errorToolResult(error);
     }
+  });
+}
+
+function withErrorOutputSchema(schema) {
+  const successSchema = typeof schema?.safeParse === "function" ? schema : z.object(schema);
+  const optionalSuccessShape = Object.fromEntries(Object.entries(successSchema.shape || {}).map(([key, value]) => [key, value.optional()]));
+  return z.object({
+    ...optionalSuccessShape,
+    ok: optionalSuccessShape.ok || z.boolean().optional(),
+    error: errorOutputSchema.shape.error.optional(),
+  }).passthrough().superRefine((value, context) => {
+    const parsed = value?.error ? errorOutputSchema.safeParse(value) : successSchema.safeParse(value);
+    if (parsed.success) return;
+    for (const issue of parsed.error.issues) context.addIssue(issue);
   });
 }
 

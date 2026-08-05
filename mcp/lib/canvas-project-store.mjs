@@ -32,6 +32,8 @@ const MAX_PAGES = 200;
 const MAX_ELEMENTS = 20_000;
 const MAX_FILES = 2_000;
 const MAX_APP_DATA_BYTES = 2 * 1024 * 1024;
+const MAX_LIBRARY_BYTES = 1024 * 1024;
+const MAX_LIBRARY_ITEMS = 200;
 const MAX_RECOVERY_PER_PAGE = 20;
 const MISSING_IMAGE_DATA_URL = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%" height="100%" fill="#f7f8f8"/><rect x="16" y="16" width="608" height="328" rx="16" fill="none" stroke="#ff154c" stroke-width="3" stroke-dasharray="12 8"/><text x="320" y="182" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#ff154c">Missing project image</text><text x="320" y="220" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#68686b">Restore the content-addressed asset, then reload</text></svg>').toString("base64")}`;
 const SAFE_ID = /^[A-Za-z0-9_-]{1,96}$/u;
@@ -619,7 +621,7 @@ function defaultProject() {
     engine: { name: "excalidraw", adapterVersion: 1 },
     activePageId: page.id,
     pages: [page],
-    settings: { theme: "light", language: "en", grid: false },
+    settings: { theme: "light", language: "en", grid: false, libraryItems: [] },
     createdAt: now,
     updatedAt: now,
   };
@@ -728,10 +730,16 @@ function sanitizeAppState(appState = {}) {
 }
 
 function sanitizeSettings(settings = {}) {
+  const libraryItems = settings.libraryItems === undefined ? [] : settings.libraryItems;
+  if (!Array.isArray(libraryItems) || libraryItems.length > MAX_LIBRARY_ITEMS) throw inputError(`Canvas library supports at most ${MAX_LIBRARY_ITEMS} items.`);
+  assertNoSensitiveFields(libraryItems);
+  const libraryCopy = structuredClone(libraryItems);
+  if (Buffer.byteLength(JSON.stringify(libraryCopy)) > MAX_LIBRARY_BYTES) throw inputError("Canvas library exceeds 1 MiB.");
   return {
     theme: settings.theme === "dark" ? "dark" : "light",
     language: normalizeLanguage(settings.language),
     grid: Boolean(settings.grid),
+    libraryItems: libraryCopy,
   };
 }
 

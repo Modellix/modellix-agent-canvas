@@ -132,7 +132,9 @@ export class ModellixLocalWebServer {
     const sessionId = secretToken();
     this.sessions.set(sessionId, Date.now() + SESSION_IDLE_MS);
     response.statusCode = 303;
-    response.setHeader("set-cookie", `modellix_canvas_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=1800`);
+    // Keep the browser cookie for the tab/session lifetime. The server-side
+    // expiry below remains sliding and still enforces 30 minutes of inactivity.
+    response.setHeader("set-cookie", `modellix_canvas_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/`);
     response.setHeader("location", "/");
     response.end();
   }

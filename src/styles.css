@@ -187,7 +187,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .canvas-stage > .excalidraw { width: 100%; height: 100%; }
 .selection-actions {
   position: absolute;
-  top: 12px;
+  top: 84px;
   left: 50%;
   z-index: 30;
   display: flex;
@@ -321,7 +321,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .page-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .page-menu { display: grid; width: 27px; height: 27px; place-items: center; background: transparent; opacity: .55; }
 .page-tab:hover .page-menu, .page-tab.active .page-menu { opacity: 1; }
-.page-dropdown { right: auto; bottom: calc(100% + 6px); left: 0; top: auto; }
+.page-dropdown { position: fixed; right: auto; top: auto; }
 .add-page { display: inline-flex; min-height: 33px; flex: 0 0 auto; align-items: center; gap: 6px; padding: 0 10px; color: #4b45d6; background: var(--accent-soft); font-size: 11px; font-weight: 700; }
 
 .modal-backdrop {
@@ -391,8 +391,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 
 .presentation { position: fixed; inset: 0; z-index: 2000; display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: 32px; color: #fff; background: #09090b; }
 .presentation-close { position: absolute; top: 18px; right: 18px; z-index: 2; display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: rgba(255, 255, 255, .12); }
-.presentation-canvas { display: grid; min-height: 0; place-items: center; }
-.presentation-canvas img { width: 100%; height: 100%; object-fit: contain; }
+.presentation-canvas { display: grid; min-height: 0; overflow: hidden; place-items: center; }
+.presentation-canvas img { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 113px); object-fit: contain; }
 .presentation-controls { display: flex; align-items: center; justify-content: center; gap: 18px; padding-top: 15px; }
 .presentation-controls button { min-height: 34px; padding: 0 13px; color: #fff; background: rgba(255, 255, 255, .12); }
 .presentation-controls span { color: #bbb; font-size: 11px; }
@@ -428,7 +428,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .quick-rail { grid-column: 1; }
   .canvas-stage { grid-column: 2; }
   .inspector { position: absolute; inset: 54px 0 46px auto; width: min(360px, calc(100vw - 50px)); min-width: 0; box-shadow: var(--shadow); }
-  .selection-actions { top: 8px; max-width: calc(100% - 12px); overflow-x: auto; }
+  .selection-actions { top: 80px; max-width: calc(100% - 12px); overflow-x: auto; }
   .selection-actions button { white-space: nowrap; }
   .page-bar { padding-inline: 6px; }
   .add-page { width: 34px; padding: 0; justify-content: center; font-size: 0; }

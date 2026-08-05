@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Excalidraw,
   exportToBlob,
@@ -35,6 +36,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Upload,
   WandSparkles,
   X
 } from 'lucide-react'
@@ -144,11 +146,14 @@ export default function App() {
   const apiRef = useRef(null)
   const sceneRef = useRef({ elements: [], appState: {}, files: {} })
   const saveTimerRef = useRef(null)
+  const historyTimerRef = useRef(null)
   const saveQueueRef = useRef(Promise.resolve())
   const loadedRef = useRef(false)
   const projectRef = useRef(null)
   const themeRef = useRef('light')
   const historyByPageRef = useRef(new Map())
+  const initializedLibraryApisRef = useRef(new WeakSet())
+  const libraryReadyRef = useRef(false)
   const applyingHistoryRef = useRef(false)
   const deckDialogReturnFocusRef = useRef(null)
   const holderDialogReturnFocusRef = useRef(null)
@@ -166,7 +171,8 @@ export default function App() {
   const excalidrawInitialData = useMemo(() => activePage ? ({
     elements: activePage.elements || [],
     appState: { ...(activePage.appState || {}), theme },
-    files: activePage.files || {}
+    files: activePage.files || {},
+    libraryItems: project?.settings?.libraryItems || []
   }) : undefined, [activePage?.id, canvasRevision])
 
   useEffect(() => { projectRef.current = project }, [project])
@@ -248,7 +254,10 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
-  useEffect(() => () => window.clearTimeout(saveTimerRef.current), [])
+  useEffect(() => () => {
+    window.clearTimeout(saveTimerRef.current)
+    window.clearTimeout(historyTimerRef.current?.timer)
+  }, [])
 
   const persist = useCallback(async ({ immediate = false } = {}) => {
     if (!projectRef.current || !loadedRef.current) return
@@ -322,11 +331,22 @@ export default function App() {
     const nextSceneSignature = scenePersistenceSignature(sceneRef.current)
     if (sceneSignatureRef.current === nextSceneSignature) return
     sceneSignatureRef.current = nextSceneSignature
-    if (!applyingHistoryRef.current) recordPageHistory({ elements: [...elements], appState, files })
+    if (!applyingHistoryRef.current) schedulePageHistory({ elements: [...elements], appState, files })
     if (loadedRef.current) {
       setSaveState('dirty')
       persist()
     }
+  }, [persist])
+
+  const onLibraryChange = useCallback(libraryItems => {
+    if (!libraryReadyRef.current) return
+    const current = projectRef.current
+    if (!current) return
+    const next = { ...current, settings: { ...(current.settings || {}), libraryItems } }
+    projectRef.current = next
+    setProject(next)
+    setSaveState('dirty')
+    persist()
   }, [persist])
 
   const addElements = useCallback(elements => {
@@ -367,6 +387,25 @@ export default function App() {
     setDeckCreateOpen(true)
   }, [])
 
+  const openPresentationPanel = useCallback(() => {
+    const page = projectRef.current?.pages.find(item => item.id === projectRef.current.activePageId)
+    const decks = Object.values(page?.appData?.decks || {})
+    const meta = selectedBusinessObject(sceneRef.current.elements, sceneRef.current.appState)?.customData?.modellix
+    const selectedDeckId = meta?.deckId || (meta?.kind === 'slide-deck' ? meta.objectId : null)
+    const deck = decks.find(item => item.id === selectedDeckId) || decks[0]
+    if (!deck) return openDeckCreator()
+    const selectedSlideId = meta?.kind === 'slide'
+      ? selectedBusinessObject(sceneRef.current.elements, sceneRef.current.appState)?.id
+      : meta?.kind === 'slide-content'
+        ? selectedBusinessObject(sceneRef.current.elements, sceneRef.current.appState)?.frameId
+        : null
+    const slideId = deck.slides.some(slide => slide.id === selectedSlideId) ? selectedSlideId : deck.slides[0]?.id
+    const frame = apiRef.current?.getSceneElements().find(element => element.id === slideId)
+    if (frame) apiRef.current.updateScene({ appState: { selectedElementIds: { [frame.id]: true } } })
+    setActivePanel('slides')
+    setPanelOpen(true)
+  }, [openDeckCreator])
+
   const createDeck = useCallback(options => {
     const center = viewportCenter(apiRef.current)
     const dimensions = slideDimensions(options)
@@ -399,9 +438,22 @@ export default function App() {
     }
   }
 
-  function recordPageHistory(snapshot) {
+  function schedulePageHistory(snapshot) {
+    const pageId = projectRef.current?.activePageId
+    if (!pageId) return
+    window.clearTimeout(historyTimerRef.current?.timer)
+    historyTimerRef.current = {
+      pageId,
+      timer: window.setTimeout(() => {
+        recordPageHistory(snapshot, pageId)
+        historyTimerRef.current = null
+      }, 180)
+    }
+  }
+
+  function recordPageHistory(snapshot, explicitPageId) {
     const current = projectRef.current
-    const page = current?.pages.find(item => item.id === current.activePageId)
+    const page = current?.pages.find(item => item.id === (explicitPageId || current.activePageId))
     if (!page) return
     const value = historySnapshot({ ...page, ...snapshot, appData: snapshot.appData ?? page.appData })
     const signature = historySignature(value)
@@ -578,11 +630,18 @@ export default function App() {
     if (!elements.length) return showToast(t('toast.noExportContent'), 'warning')
     try {
       if (format === 'svg') {
-        const svg = await exportToSvg({ elements, appState: { ...api.getAppState(), exportBackground: true }, files: api.getFiles(), exportPadding: 24 })
+        const svg = await exportToSvg({ elements, appState: { ...api.getAppState(), exportBackground: true }, files: api.getFiles(), exportPadding: 24, skipInliningFonts: true })
         downloadBlob(new Blob([svg.outerHTML], { type: 'image/svg+xml' }), `${activePage.name}.svg`)
       } else {
         const exportScale = [1, 2, 4].includes(Number(scale)) ? Number(scale) : 2
-        const blob = await exportToBlob({ elements, appState: { ...api.getAppState(), exportBackground: true, exportScale }, files: api.getFiles(), mimeType: 'image/png', exportPadding: 24 })
+        const blob = await exportToBlob({
+          elements,
+          appState: { ...api.getAppState(), exportBackground: true },
+          files: api.getFiles(),
+          mimeType: 'image/png',
+          exportPadding: 24,
+          getDimensions: (width, height) => ({ width: width * exportScale, height: height * exportScale, scale: exportScale })
+        })
         downloadBlob(blob, `${activePage.name}@${exportScale}x.png`)
       }
       showToast(t('toast.exportDone'), 'success')
@@ -595,6 +654,28 @@ export default function App() {
     await persist({ immediate: true })
     const current = projectRef.current
     downloadBlob(new Blob([JSON.stringify(current, null, 2)], { type: 'application/json' }), `${safeName(current.name)}.modellix-canvas.json`)
+  }
+
+  async function importProjectJson(file) {
+    try {
+      if (!file || file.size > 50 * 1024 * 1024) throw new Error(t('error.invalidBackup'))
+      const imported = JSON.parse(await file.text())
+      if (!imported || typeof imported !== 'object' || !Array.isArray(imported.pages) || imported.pages.length === 0) throw new Error(t('error.invalidBackup'))
+      if (!window.confirm(t('toast.importConfirm'))) return
+      await persist({ immediate: true })
+      const current = projectRef.current
+      const activePageId = imported.pages.some(page => page?.id === imported.activePageId) ? imported.activePageId : imported.pages[0]?.id
+      const candidate = { ...imported, projectId: current.projectId, revision: current.revision, activePageId }
+      await queueProjectSave(() => saveProject(candidate))
+      historyByPageRef.current.clear()
+      const restored = await refreshProject()
+      seedPageHistories(restored)
+      setCanvasRevision(value => value + 1)
+      setHistoryVersion(value => value + 1)
+      showToast(t('toast.importDone'), 'success')
+    } catch (error) {
+      showToast(t('toast.importFailed', { message: error.message || t('error.invalidBackup') }), 'error')
+    }
   }
 
   async function beginPresentation(deck) {
@@ -641,6 +722,7 @@ export default function App() {
         onFullscreen={() => requestFullscreen()}
         onExport={(format, scale) => exportScene(format, false, scale)}
         onExportProject={exportProjectJson}
+        onImportProject={importProjectJson}
         canUndo={canRestoreHistory(-1)}
         canRedo={canRestoreHistory(1)}
         onUndo={() => restorePageHistory(-1)}
@@ -653,16 +735,24 @@ export default function App() {
           onPanel={panel => { setActivePanel(panel); setPanelOpen(true) }}
           onHolder={openHolderCreator}
           onHtml={createDraft}
-          onSlides={openDeckCreator}
+          onSlides={openPresentationPanel}
         />
 
         <main className="canvas-stage" aria-label="Modellix infinite canvas">
           {missingAssetCount > 0 && <div className="missing-assets-banner" role="alert"><AlertTriangle size={15} /><span>{t('toast.missingAssets', { count: missingAssetCount })}</span></div>}
           <Excalidraw
             key={`${activePage.id}:${canvasRevision}`}
-            excalidrawAPI={api => { apiRef.current = api }}
+            excalidrawAPI={api => {
+              apiRef.current = api
+              if (!api || initializedLibraryApisRef.current.has(api)) return
+              initializedLibraryApisRef.current.add(api)
+              libraryReadyRef.current = false
+              Promise.resolve(api.updateLibrary({ libraryItems: projectRef.current?.settings?.libraryItems || [], merge: false }))
+                .finally(() => { if (apiRef.current === api) libraryReadyRef.current = true })
+            }}
             initialData={excalidrawInitialData}
             onChange={onSceneChange}
+            onLibraryChange={onLibraryChange}
             langCode={language}
             theme={theme}
             name={project.name}
@@ -676,6 +766,7 @@ export default function App() {
             businessObject={businessObject}
             onEdit={() => { setActivePanel('ai'); setPanelOpen(true) }}
             onHtml={() => { setActivePanel('html'); setPanelOpen(true) }}
+            onSlides={openPresentationPanel}
             onExport={() => exportScene('png', true)}
           />
         </main>
@@ -722,8 +813,9 @@ export default function App() {
   )
 }
 
-function AppHeader({ project, page, saveState, language, theme, onLanguage, onTheme, onFullscreen, onExport, onExportProject, canUndo, canRedo, onUndo, onRedo }) {
+function AppHeader({ project, page, saveState, language, theme, onLanguage, onTheme, onFullscreen, onExport, onExportProject, onImportProject, canUndo, canRedo, onUndo, onRedo }) {
   const [menu, setMenu] = useState(false)
+  const importInputRef = useRef(null)
   const { t } = useI18n()
   const saveLabel = saveState === 'saving' ? t('header.saving') : saveState === 'error' ? t('header.saveFailed') : saveState === 'dirty' ? t('header.unsaved') : t('header.saved')
   return (
@@ -741,7 +833,8 @@ function AppHeader({ project, page, saveState, language, theme, onLanguage, onTh
         <button className="primary-button" onClick={() => onExport('png', 2)}><Download size={16} />{t('header.export')}</button>
         <div className="menu-anchor">
           <button className="icon-button" onClick={() => setMenu(value => !value)} aria-label={t('header.more')} title={t('header.more')}><MoreHorizontal size={18} /></button>
-          {menu && <div className="dropdown"><button onClick={() => { onExport('png', 1); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 1 })}</button><button onClick={() => { onExport('png', 2); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 2 })}</button><button onClick={() => { onExport('png', 4); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 4 })}</button><button onClick={() => { onExport('svg'); setMenu(false) }}><FileImage size={16} />{t('header.currentSvg')}</button><button onClick={() => { onExportProject(); setMenu(false) }}><Save size={16} />{t('header.projectBackup')}</button><a href="https://www.modellix.ai/console/api-key" target="_blank" rel="noreferrer"><ExternalLink size={16} />{t('header.console')}</a></div>}
+          {menu && <div className="dropdown"><button onClick={() => { onExport('png', 1); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 1 })}</button><button onClick={() => { onExport('png', 2); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 2 })}</button><button onClick={() => { onExport('png', 4); setMenu(false) }}><Download size={16} />{t('header.currentPng', { scale: 4 })}</button><button onClick={() => { onExport('svg'); setMenu(false) }}><FileImage size={16} />{t('header.currentSvg')}</button><button onClick={() => { onExportProject(); setMenu(false) }}><Save size={16} />{t('header.projectBackup')}</button><button onClick={() => importInputRef.current?.click()}><Upload size={16} />{t('header.importBackup')}</button><a href="https://www.modellix.ai/console/api-key" target="_blank" rel="noreferrer"><ExternalLink size={16} />{t('header.console')}</a></div>}
+          <input ref={importInputRef} hidden type="file" accept="application/json,.json,.modellix-canvas.json" onChange={event => { const file = event.target.files?.[0]; setMenu(false); if (file) void onImportProject(file); event.target.value = '' }} />
         </div>
       </div>
     </header>
@@ -763,7 +856,7 @@ function RailButton({ active, icon: Icon, label, onClick }) {
   return <button className={active ? 'active' : ''} onClick={onClick}><Icon size={20} /><span>{label}</span></button>
 }
 
-function SelectionActions({ selection, businessObject, onEdit, onHtml, onExport }) {
+function SelectionActions({ selection, businessObject, onEdit, onHtml, onSlides, onExport }) {
   const { t } = useI18n()
   if (!selection.length) return null
   const hasImage = selection.some(element => element.type === 'image')
@@ -771,6 +864,7 @@ function SelectionActions({ selection, businessObject, onEdit, onHtml, onExport 
   return <div className="selection-actions">
     {hasImage && <button onClick={onEdit}><WandSparkles size={15} />{t('selection.editImage')}</button>}
     {kind === 'html-draft' && <button onClick={onHtml}><Code2 size={15} />{t('selection.editHtml')}</button>}
+    {['slide', 'slide-content', 'slide-deck'].includes(kind) && <button onClick={onSlides}><Layers3 size={15} />{t('selection.editSlides')}</button>}
     <button onClick={onExport}><Download size={15} />{t('selection.export')}</button>
   </div>
 }
@@ -1028,13 +1122,14 @@ function HtmlPanel({ page, businessObject, onUpdateAppData, onToast, api }) {
       const blob = await captureHtmlDraft(source, t)
       const dataURL = await blobToDataUrl(blob, t)
       const fileId = modelId('file')
-      const center = viewportCenter(api)
       const width = 960
       const height = 540
       api.addFiles([{ id: fileId, dataURL, mimeType: 'image/png', created: Date.now(), lastRetrieved: Date.now() }])
-      const { element } = createCanvasImage({ fileId, x: center.x - width / 2, y: center.y - height / 2, width, height, kind: 'html-screenshot' })
-      api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), element], appState: { selectedElementIds: { [element.id]: true } }, captureUpdate: 'IMMEDIATELY' })
-      api.scrollToContent([element], { fitToContent: true, animate: true, maxZoom: 1.2 })
+      const x = Number(businessObject?.x || 0) + Number(businessObject?.width || 960) + 80
+      const y = Number(businessObject?.y || 0)
+      const { element } = createCanvasImage({ fileId, x, y, width, height, kind: 'html-screenshot' })
+      api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), element], appState: { selectedElementIds: { [businessObject.id]: true } }, captureUpdate: 'IMMEDIATELY' })
+      api.scrollToContent([businessObject, element], { fitToContent: true, animate: true, maxZoom: 1.2 })
       onToast(t('html.inserted'), 'success')
     } catch (error) {
       onToast(t('html.screenshotFailed', { message: error.message }), 'error')
@@ -1081,8 +1176,15 @@ function SlidesPanel({ page, businessObject, onPresent, api, onUpdateAppData, on
     if (deck.slides.length === 1) return onToast(t('slides.keepOne'), 'warning')
     if (!window.confirm(t('slides.delete', { name: slide.name }))) return
     const now = Date.now()
-    api.updateScene({ elements: api.getSceneElementsIncludingDeleted().map(element => element.id === slide.id || element.frameId === slide.id ? { ...element, isDeleted: true, updated: now, version: Number(element.version || 1) + 1 } : element), captureUpdate: 'IMMEDIATELY' })
-    updateDeck(value => ({ ...value, slides: value.slides.filter(item => item.id !== slide.id).map((item, order) => ({ ...item, order })) }))
+    const removedIndex = deck.slides.findIndex(item => item.id === slide.id)
+    const remaining = deck.slides.filter(item => item.id !== slide.id).map((item, order) => ({ ...item, order }))
+    const nextSlide = remaining[Math.min(removedIndex, remaining.length - 1)]
+    api.updateScene({
+      elements: api.getSceneElementsIncludingDeleted().map(element => element.id === slide.id || element.frameId === slide.id ? { ...element, isDeleted: true, updated: now, version: Number(element.version || 1) + 1 } : element),
+      appState: { selectedElementIds: nextSlide ? { [nextSlide.id]: true } : {} },
+      captureUpdate: 'IMMEDIATELY'
+    })
+    updateDeck(value => ({ ...value, slides: remaining }))
   }
   function moveSlide(index, direction) {
     const target = index + direction
@@ -1138,7 +1240,7 @@ function SlideThumbnail({ api, slide, signature }) {
       if (!frame) return
       const elements = api.getSceneElements().filter(element => element.id === frame.id || element.frameId === frame.id)
       try {
-        const blob = await exportToBlob({ elements, appState: { ...api.getAppState(), exportBackground: true, exportScale: 0.3 }, files: api.getFiles(), mimeType: 'image/png', exportingFrame: frame, exportPadding: 0 })
+        const blob = await exportToBlob({ elements, appState: { ...api.getAppState(), exportBackground: true }, files: api.getFiles(), mimeType: 'image/png', exportingFrame: frame, exportPadding: 0, getDimensions: (width, height) => ({ width: width * 0.3, height: height * 0.3, scale: 0.3 }) })
         objectUrl = URL.createObjectURL(blob)
         if (active) setUrl(objectUrl)
       } catch { /* Keep the numbered fallback when preview generation fails. */ }
@@ -1176,7 +1278,36 @@ function PageBar({ pages, activePageId, onSwitch, onAdd, onDuplicate, onRename, 
 function PageTab({ page, index, count, active, onSwitch, onDuplicate, onRename, onDelete, onMove, onReorder }) {
   const { t } = useI18n()
   const [menu, setMenu] = useState(false)
-  return <div className={`page-tab ${active ? 'active' : ''}`} draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/modellix-page-id', page.id) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={event => { event.preventDefault(); onReorder(event.dataTransfer.getData('text/modellix-page-id'), page.id) }}><button onClick={() => onSwitch(page.id)}><PageThumbnail page={page} /><span className="page-number">{index + 1}</span><span className="page-name">{page.name}</span></button><button className="page-menu" onClick={() => setMenu(value => !value)} aria-label={t('pages.menu')} title={t('pages.menu')}><MoreHorizontal size={15} /></button>{menu && <div className="dropdown page-dropdown"><button onClick={() => { onRename(page); setMenu(false) }}>{t('pages.rename')}</button><button onClick={() => { onDuplicate(page); setMenu(false) }}><Copy size={14} />{t('pages.duplicate')}</button><button disabled={index === 0} onClick={() => { onMove(page, -1); setMenu(false) }}>{t('pages.moveEarlier')}</button><button disabled={index === count - 1} onClick={() => { onMove(page, 1); setMenu(false) }}>{t('pages.moveLater')}</button><button className="danger" onClick={() => { onDelete(page); setMenu(false) }}><Trash2 size={14} />{t('pages.delete')}</button></div>}</div>
+  const menuButtonRef = useRef(null)
+  const menuRef = useRef(null)
+  const [menuPosition, setMenuPosition] = useState({ left: 8, bottom: 60 })
+  useEffect(() => {
+    if (!menu) return undefined
+    const close = event => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return
+      if (event.type === 'pointerdown' && (menuRef.current?.contains(event.target) || menuButtonRef.current?.contains(event.target))) return
+      setMenu(false)
+    }
+    window.addEventListener('pointerdown', close, true)
+    window.addEventListener('keydown', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('pointerdown', close, true)
+      window.removeEventListener('keydown', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [menu])
+  function toggleMenu() {
+    if (!menu) {
+      const rect = menuButtonRef.current?.getBoundingClientRect()
+      if (rect) setMenuPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 196)), bottom: window.innerHeight - rect.top + 6 })
+    }
+    setMenu(value => !value)
+  }
+  const dropdown = menu ? createPortal(<div ref={menuRef} className="dropdown page-dropdown" style={menuPosition}><button onClick={() => { onRename(page); setMenu(false) }}>{t('pages.rename')}</button><button onClick={() => { onDuplicate(page); setMenu(false) }}><Copy size={14} />{t('pages.duplicate')}</button><button disabled={index === 0} onClick={() => { onMove(page, -1); setMenu(false) }}>{t('pages.moveEarlier')}</button><button disabled={index === count - 1} onClick={() => { onMove(page, 1); setMenu(false) }}>{t('pages.moveLater')}</button><button className="danger" onClick={() => { onDelete(page); setMenu(false) }}><Trash2 size={14} />{t('pages.delete')}</button></div>, document.querySelector('.modellix-app') || document.body) : null
+  return <div className={`page-tab ${active ? 'active' : ''}`} draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/modellix-page-id', page.id) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={event => { event.preventDefault(); onReorder(event.dataTransfer.getData('text/modellix-page-id'), page.id) }}><button onClick={() => onSwitch(page.id)}><PageThumbnail page={page} /><span className="page-number">{index + 1}</span><span className="page-name">{page.name}</span></button><button ref={menuButtonRef} className="page-menu" onClick={toggleMenu} aria-label={t('pages.menu')} title={t('pages.menu')}><MoreHorizontal size={15} /></button>{dropdown}</div>
 }
 
 function PageThumbnail({ page }) {
@@ -1189,7 +1320,7 @@ function PageThumbnail({ page }) {
       const elements = (page.elements || []).filter(element => !element.isDeleted)
       if (!elements.length) return
       try {
-        const blob = await exportToBlob({ elements, appState: { ...(page.appState || {}), exportBackground: true, exportScale: 0.12 }, files: page.files || {}, mimeType: 'image/png', exportPadding: 8 })
+        const blob = await exportToBlob({ elements, appState: { ...(page.appState || {}), exportBackground: true }, files: page.files || {}, mimeType: 'image/png', exportPadding: 8, getDimensions: (width, height) => ({ width: width * 0.12, height: height * 0.12, scale: 0.12 }) })
         objectUrl = URL.createObjectURL(blob)
         if (active) setUrl(objectUrl)
       } catch { /* The numbered placeholder remains usable when a thumbnail cannot be rendered. */ }

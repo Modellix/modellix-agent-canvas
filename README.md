@@ -30,7 +30,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 
 ## What it includes
 
-- **Infinite canvas:** text, shapes, lines, arrows, freehand drawing, frames, images, grouping, locking, layers, alignment, libraries, undo, and redo.
+- **Infinite canvas:** text, shapes, lines, arrows, freehand drawing, frames, images, grouping, locking, layers, alignment, a project-persisted personal library, and action-level undo and redo.
 - **Multi-page projects:** create, rename, duplicate, reorder, and delete pages while preserving an independent viewport and history for every page.
 - **Image placeholders:** reserve a target area before generation; the selected result replaces the placeholder and remains undoable, while extra results are placed predictably beside it.
 - **Image generation and editing:** text-to-image, single-image editing, ordered 2–10 image references, an explicit primary reference, annotation-based editing, transparent backgrounds, fidelity controls, and 1–4 outputs.
@@ -39,7 +39,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 - **Durable tasks:** task IDs, state transitions, and local results are persisted in an append-only ledger, so work can continue after the host or browser closes.
 - **HTML drafts:** source editing, CSP-restricted sandbox preview, refresh, canvas capture, and source ZIP export.
 - **Presentations:** 16:9, 4:3, and custom ratios; title, content, image, comparison, and blank layouts; thumbnails, reordering, duplication, presentation mode, and PNG-sequence export.
-- **Import and export:** selected area or full-page PNG/SVG, presentation PNG ZIP, and project JSON backup.
+- **Import and export:** selected area or full-page PNG/SVG at 1×, 2×, or 4×, presentation PNG ZIP, and confirmed project JSON backup restore.
 - **English, Chinese, and Japanese UI:** English is the default. The language switch in the upper-right updates the Canvas, Excalidraw controls, and secure API Key form, and the choice is saved with the project.
 - **Local security:** credentials use the `modellix-cli` system credential store and are never written to chat, MCP arguments, URLs, project files, or task ledgers.
 
@@ -51,7 +51,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 
 Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Run `npx -y --package @modellix/agent-canvas@0.1.12 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
+Run `npx -y --package @modellix/agent-canvas@0.1.13 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
 
 ## Quick start
 
@@ -115,7 +115,7 @@ Use the adapter intended for the target host. The root `.mcp.json` and `.plugin/
 The root `mcp.json` runs:
 
 ```text
-npx -y --package @modellix/agent-canvas@0.1.12 modellix-agent-canvas --host cursor --supports-mcp-apps true
+npx -y --package @modellix/agent-canvas@0.1.13 modellix-agent-canvas --host cursor --supports-mcp-apps true
 ```
 
 The template does not contain an API Key. Cursor supplies the active workspace through MCP Roots; the template intentionally avoids unportable `${workspaceFolder}` interpolation.
@@ -128,7 +128,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.12` from the active workspace and use the local page fallback.
+For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.13` from the active workspace and use the local page fallback.
 
 ## API Key and privacy
 

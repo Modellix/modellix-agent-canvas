@@ -55,6 +55,8 @@ try {
   await client.callTool({ name: "delete_canvas_page", arguments: { pageId: created.structuredContent.pageId } });
   const context = await client.callTool({ name: "get_canvas_context", arguments: {} });
   if (context.structuredContent?.pages?.length !== 1) throw new Error("Page lifecycle probe did not return to one page.");
+  const guardedDelete = await client.callTool({ name: "delete_canvas_page", arguments: { pageId: context.structuredContent.activePageId } });
+  if (!guardedDelete.isError || guardedDelete.structuredContent?.error?.code !== "INPUT_INVALID") throw new Error("Last-page deletion did not preserve its structured business error.");
 
   phase = "store project asset";
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");

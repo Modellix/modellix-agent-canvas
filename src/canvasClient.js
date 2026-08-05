@@ -157,8 +157,10 @@ export async function finalizeImageTask(taskId) {
     : fetchJson(ENDPOINTS.finalize, { method: 'POST', body: JSON.stringify({ taskId }) })
 }
 
-export function requestFullscreen() {
-  return window.modellixMcp?.requestDisplayMode?.('fullscreen')
+export async function requestFullscreen() {
+  if (window.modellixMcp?.requestDisplayMode) return window.modellixMcp.requestDisplayMode('fullscreen')
+  if (document.fullscreenElement) return document.exitFullscreen?.()
+  return document.documentElement.requestFullscreen?.()
 }
 
 function blobToBase64(blob) {
