@@ -11,11 +11,11 @@
     {
       "name": "modellix-agent-canvas",
       "description": "Create and edit visual projects through Modellix on a workspace-bound local canvas.",
-      "version": "0.1.14",
+      "version": "0.1.15",
       "source": {
         "source": "npm",
         "package": "@modellix/agent-canvas",
-        "version": "0.1.14",
+        "version": "0.1.15",
         "registry": "https://registry.npmjs.org"
       },
       "mcpServers": "./.mcp.claude.json",

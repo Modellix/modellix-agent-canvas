@@ -1,6 +1,6 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,52 @@ try {
     throw new Error(`Cold npx package launch failed: ${npxDoctor.stdout}`);
   }
 
+  const bootstrapCache = path.join(temporaryRoot, "codex-bootstrap-runtime");
+  const bootstrapEnvironment = {
+    MODELLIX_AGENT_CANVAS_BOOTSTRAP_TEST: "1",
+    MODELLIX_AGENT_CANVAS_RUNTIME_DIR: bootstrapCache,
+    MODELLIX_AGENT_CANVAS_RUNTIME_SPEC: tarball,
+    npm_config_cache: cacheRoot,
+  };
+  const bootstrapEntry = path.join(root, "codex-bootstrap.mjs");
+  const coldBootstrap = run(process.execPath, [bootstrapEntry, "--doctor"], root, bootstrapEnvironment);
+  const coldBootstrapReport = JSON.parse(coldBootstrap.stdout);
+  if (!coldBootstrapReport.ok || coldBootstrapReport.version !== sourcePackage.version) {
+    throw new Error(`Cold Codex bootstrap failed: ${coldBootstrap.stdout}`);
+  }
+  const cachedRuntimeMetadata = path.join(
+    bootstrapCache,
+    sourcePackage.version,
+    "node_modules",
+    "@modellix",
+    "agent-canvas",
+    "package.json",
+  );
+  const firstCacheMtime = (await stat(cachedRuntimeMetadata)).mtimeMs;
+  const warmBootstrap = run(process.execPath, [bootstrapEntry, "--doctor"], root, bootstrapEnvironment);
+  const warmBootstrapReport = JSON.parse(warmBootstrap.stdout);
+  if (!warmBootstrapReport.ok || (await stat(cachedRuntimeMetadata)).mtimeMs !== firstCacheMtime) {
+    throw new Error("Warm Codex bootstrap did not reuse the installed runtime.");
+  }
+
+  const concurrentCache = path.join(temporaryRoot, "codex-bootstrap-concurrent");
+  const concurrentEnvironment = {
+    ...bootstrapEnvironment,
+    MODELLIX_AGENT_CANVAS_RUNTIME_DIR: concurrentCache,
+  };
+  const concurrentResults = await Promise.all([
+    runAsync(process.execPath, [bootstrapEntry, "--doctor"], root, concurrentEnvironment),
+    runAsync(process.execPath, [bootstrapEntry, "--doctor"], root, concurrentEnvironment),
+  ]);
+  for (const result of concurrentResults) {
+    const report = JSON.parse(result.stdout);
+    if (!report.ok || report.version !== sourcePackage.version) {
+      throw new Error(`Concurrent Codex bootstrap failed: ${result.stdout}`);
+    }
+  }
+  const bootstrapResidue = (await readdir(concurrentCache)).filter((name) => name.startsWith(".install-") || name.startsWith(".stage-"));
+  if (bootstrapResidue.length > 0) throw new Error(`Codex bootstrap left temporary cache entries: ${bootstrapResidue.join(", ")}`);
+
   runNpm(["install", "--ignore-scripts", "--omit=dev", "--no-audit", "--no-fund", tarball], temporaryRoot, { npm_config_cache: cacheRoot });
   const packageRoot = path.join(temporaryRoot, "node_modules", "@modellix", "agent-canvas");
   const pkg = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -42,6 +88,7 @@ try {
     ".plugin/plugin.json",
     ".mcp.json",
     ".mcp.codex.json",
+    "codex-bootstrap.mjs",
     "adapters/opencode/opencode.json",
     "adapters/opencode/opencode-v2.json",
     "mcp/static/canvas.html",
@@ -79,7 +126,8 @@ try {
   }
 
   run(process.execPath, [path.join(root, "scripts", "probe-mcp.mjs")], root, {
-    MODELLIX_MCP_ENTRY: path.join(packageRoot, "scripts", "start-mcp.mjs"),
+    ...bootstrapEnvironment,
+    MODELLIX_MCP_ENTRY: bootstrapEntry,
   });
   process.stdout.write(`Package smoke test passed for ${pkg.name}@${pkg.version}.\n`);
 } finally {
@@ -103,4 +151,25 @@ function run(command, args, cwd, extraEnvironment = {}) {
     throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}.\n${result.stderr || result.stdout}`);
   }
   return result;
+}
+
+function runAsync(command, args, cwd, extraEnvironment = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      env: { ...process.env, ...extraEnvironment, FORCE_COLOR: "0", NO_COLOR: "1" },
+      shell: false,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(`${command} ${args.join(" ")} failed with exit ${code}.\n${stderr || stdout}`));
+    });
+  });
 }

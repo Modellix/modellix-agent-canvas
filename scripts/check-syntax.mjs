@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 
 const roots = ["mcp", "scripts", "test"];
-const files = [];
+const files = [path.resolve("codex-bootstrap.mjs")];
 for (const root of roots) files.push(...await listJavaScript(path.resolve(root)));
 
 for (const file of files.sort()) {

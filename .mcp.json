@@ -7,7 +7,7 @@
       "args": [
         "-y",
         "--package",
-        "@modellix/agent-canvas@0.1.14",
+        "@modellix/agent-canvas@0.1.15",
         "modellix-agent-canvas",
         "--host",
         "cursor",

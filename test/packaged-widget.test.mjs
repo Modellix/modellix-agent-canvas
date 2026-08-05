@@ -26,6 +26,7 @@ test("runtime serves one prebuilt self-contained MCP Apps document", async () =>
   assert.equal(html.includes('"unload"'), false, "the packaged Widget must not register deprecated unload handlers");
   assert.match(html, /"pagehide"/u);
   assert.match(html, /modellixMcp/u);
+  assert.doesNotMatch(html, /AIzaSy[A-Za-z0-9_-]{20,}/u, "the packaged Widget must not contain literal Google API keys");
   assert.ok(Buffer.byteLength(html, "utf8") < 9 * 1024 * 1024, "the Widget must fit the MCP stdio transport budget");
   assert.equal(await modellixStaticHtml(), html, "the validated widget should be cached");
 });

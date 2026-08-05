@@ -80,11 +80,11 @@ open_modellix_canvas { "workspacePath": "<同一当前项目绝对路径>" }
 
 ## 宿主配置
 
-仓库为四个宿主提供独立适配文件。根 `.plugin/plugin.json` 与 `.mcp.json` 是供 Cursor Directory 自动发现的 Open Plugins 入口；`.cursor-plugin/marketplace.json` 与 `.cursor-plugin/plugin.json` 是 Cursor 官方、个人和本地 Marketplace 入口；Codex 使用 `.mcp.codex.json`，直接配置 Cursor 使用 `mcp.json`。
+仓库为四个宿主提供独立适配文件。根 `.plugin/plugin.json` 与 `.mcp.json` 是供 Cursor Directory 自动发现的 Open Plugins 入口；`.cursor-plugin/marketplace.json` 与 `.cursor-plugin/plugin.json` 是 Cursor 官方、个人和本地 Marketplace 入口；Codex 清单内嵌专用 MCP 配置，`.mcp.codex.json` 提供等价的直接开发入口；直接配置 Cursor 使用 `mcp.json`。
 
 | 宿主 | 本地 MCP | 画布载体 | 配置/清单 |
 | --- | --- | --- | --- |
-| Codex | `stdio` | MCP Apps Widget；必要时可回退本地页 | `.codex-plugin/plugin.json`、`.mcp.codex.json` |
+| Codex | `stdio` | MCP Apps Widget；必要时可回退本地页 | `.codex-plugin/plugin.json`（`.mcp.codex.json` 等价镜像） |
 | Cursor 2.6+ | `stdio` | MCP Apps | `.cursor-plugin/marketplace.json`、`.cursor-plugin/plugin.json`、`mcp.json` |
 | Claude Code | `stdio` | 短期本地页 | `.claude-plugin/plugin.json`、`.mcp.claude.json` |
 | OpenCode | local MCP command | 短期本地页 | `adapters/opencode/opencode.json`、`.agents/skills` |
@@ -92,18 +92,18 @@ open_modellix_canvas { "workspacePath": "<同一当前项目绝对路径>" }
 
 ### Codex
 
-Codex 插件发布物使用 `.codex-plugin/plugin.json` 和 `.mcp.codex.json`。Modellix Marketplace 从 GitHub 仓库根目录安装插件文件，MCP 入口再通过 `npx` 启动固定版本的公开 npm 运行包：
+Codex 插件发布物在 `.codex-plugin/plugin.json` 内嵌 MCP 配置，并以 `.mcp.codex.json` 保留等价的直接开发入口。Modellix Marketplace 从 GitHub 仓库根目录安装插件文件；Codex 适配器启动单个 Node bootstrap，首次使用时把固定版本的公开 npm 运行包安装到用户级缓存，随后在同一进程内载入 MCP。热启动直接复用已校验缓存，不再保留 `npx` 包装进程：
 
 ```sh
 codex plugin marketplace add Modellix/modellix-agent-canvas
 codex plugin add modellix-agent-canvas@modellix
 ```
 
-这种结构避免 Codex 的 npm Marketplace 解包流程遗漏 Node 运行依赖。本地开发可直接按 `.mcp.codex.json` 启动，或把仓库加入个人本地 marketplace。只有 `open_modellix_canvas` 绑定 MCP Apps UI；数据工具不会意外渲染重复 Widget。
+这种结构避免 Codex 的 Git Marketplace 稀疏缓存遗漏 Node 运行依赖，也不要求全局安装 CLI 或长期运行额外服务。本地开发可直接按 `.mcp.codex.json` 启动，或把仓库加入个人本地 marketplace。只有 `open_modellix_canvas` 绑定 MCP Apps UI；数据工具不会意外渲染重复 Widget。
 
 ### Cursor
 
-Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。所有入口都通过 `npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
+Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。Cursor 入口通过 `npx -y --package @modellix/agent-canvas@0.1.15 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
 
 ### Claude Code
 
@@ -122,7 +122,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
+OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.15 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
 
 更完整的配置边界与验证状态见 [宿主兼容说明](host-compatibility.md)。
 

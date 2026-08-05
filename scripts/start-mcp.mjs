@@ -70,6 +70,6 @@ if (missing.length > 0) {
   );
 }
 
-const WORKSPACE_CWD = process.cwd();
+const WORKSPACE_CWD = process.env.MODELLIX_WORKSPACE_CWD || process.cwd();
 process.env.MODELLIX_WORKSPACE_CWD = WORKSPACE_CWD;
 await import(pathToFileURL(path.join(ROOT_DIR, "mcp", "server.mjs")).href);

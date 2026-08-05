@@ -18,10 +18,10 @@ const cursorMarketplace = JSON.parse(await readFile(path.join(root, ".cursor-plu
 const claudeMarketplace = JSON.parse(await readFile(path.join(root, ".claude-plugin", "marketplace.json"), "utf8"));
 const adapters = await Promise.all([
   ".mcp.json",
-  ".mcp.codex.json",
   "mcp.json",
   ".mcp.claude.json",
 ].map(async (file) => [file, JSON.parse(await readFile(path.join(root, file), "utf8"))]));
+const codexAdapter = JSON.parse(await readFile(path.join(root, ".mcp.codex.json"), "utf8"));
 const openCodeAdapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode.json"), "utf8"));
 const openCodeV2Adapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode-v2.json"), "utf8"));
 const expectedNpxArgs = ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"];
@@ -82,6 +82,26 @@ for (const [file, adapter] of adapters) {
     throw new Error(`${file} must explicitly select the complete pinned npm runtime and executable through npx.`);
   }
 }
+const codexServer = codexAdapter.mcpServers?.["modellix-agent-canvas"];
+const codexManifestServer = manifest.mcpServers?.["modellix-agent-canvas"];
+for (const [label, serverConfig] of [
+  ["Codex plugin manifest", codexManifestServer],
+  ["Codex standalone adapter", codexServer],
+]) {
+  if (
+    serverConfig?.command !== "node"
+    || serverConfig.cwd !== "."
+    || !samePrefix(serverConfig.args, ["./codex-bootstrap.mjs", "--host", "codex", "--supports-mcp-apps", "true"])
+  ) {
+    throw new Error(`${label} must launch the pinned runtime through the plugin-root single-process bootstrap.`);
+  }
+}
+if (JSON.stringify(codexManifestServer) !== JSON.stringify(codexServer)) {
+  throw new Error("Codex plugin manifest and standalone adapter must contain the same MCP server configuration.");
+}
+if (!await exists(path.join(root, "codex-bootstrap.mjs"))) {
+  throw new Error("Codex bootstrap entry is missing from the plugin root.");
+}
 const openCodeCommand = openCodeAdapter.mcp?.["modellix-agent-canvas"]?.command;
 if (openCodeCommand?.[0] !== "npx" || !samePrefix(openCodeCommand.slice(1), expectedNpxArgs)) {
   throw new Error("OpenCode stable must explicitly select the complete pinned npm runtime and executable through npx.");
@@ -122,12 +142,9 @@ for (const field of ["homepage", "repository"]) assertHttps(openManifest[field],
 for (const field of ["websiteURL", "privacyPolicyURL", "termsOfServiceURL"]) {
   assertHttps(manifest.interface?.[field], `interface.${field}`);
 }
-for (const field of ["skills", "mcpServers"]) await assertRelativeFileOrDirectory(manifest[field], field);
+await assertRelativeFileOrDirectory(manifest.skills, "skills");
 for (const field of ["skills", "mcpServers", "logo"]) {
   await assertRelativeFileOrDirectory(openManifest[field], `openPlugin.${field}`);
-}
-if (manifest.mcpServers !== "./.mcp.codex.json") {
-  throw new Error("Codex plugin must use the Codex-specific MCP adapter.");
 }
 if (openManifest.mcpServers !== "./.mcp.json") {
   throw new Error("Open Plugins must use the vendor-neutral root MCP adapter.");

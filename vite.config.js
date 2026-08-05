@@ -32,7 +32,7 @@ const localWeb = new ModellixLocalWebServer({ context, cli, taskStore, projectSt
 
 export default defineConfig({
   base: './',
-  plugins: [react(), modellixDevelopmentApi()],
+  plugins: [stripUnusedExcalidrawFirebaseConfig(), react(), modellixDevelopmentApi()],
   server: {
     host: '127.0.0.1',
     headers: {
@@ -50,6 +50,24 @@ export default defineConfig({
     }
   }
 })
+
+function stripUnusedExcalidrawFirebaseConfig() {
+  const excalidrawDistribution = '/node_modules/@excalidraw/excalidraw/dist/'
+  const firebaseConfig = /VITE_APP_FIREBASE_CONFIG\s*:\s*'[^']*'/gu
+  const googleApiKey = /AIzaSy[A-Za-z0-9_-]{20,}/u
+  return {
+    name: 'modellix-strip-unused-excalidraw-firebase-config',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.replaceAll('\\', '/').includes(excalidrawDistribution) || !code.includes('VITE_APP_FIREBASE_CONFIG')) return null
+      const scrubbed = code.replace(firebaseConfig, 'VITE_APP_FIREBASE_CONFIG:""')
+      if (scrubbed === code || googleApiKey.test(scrubbed)) {
+        throw new Error('Unable to remove the unused Excalidraw Firebase client configuration from the browser bundle.')
+      }
+      return { code: scrubbed, map: null }
+    }
+  }
+}
 
 function modellixDevelopmentApi() {
   return {

@@ -1,6 +1,6 @@
 {
   "name": "@modellix/agent-canvas",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "mcpName": "io.github.modellix/agent-canvas",
   "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
   "author": {
@@ -14,6 +14,7 @@
     "modellix-agent-canvas": "scripts/start-mcp.mjs"
   },
   "files": [
+    "codex-bootstrap.mjs",
     ".plugin",
     ".codex-plugin",
     ".cursor-plugin",

@@ -1,7 +1,7 @@
 {
   "id": "modellix-agent-canvas",
   "name": "modellix-agent-canvas",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
   "author": {
     "name": "Modellix",
@@ -19,7 +19,13 @@
     "image-editing"
   ],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.codex.json",
+  "mcpServers": {
+    "modellix-agent-canvas": {
+      "command": "node",
+      "args": ["./codex-bootstrap.mjs", "--host", "codex", "--supports-mcp-apps", "true"],
+      "cwd": "."
+    }
+  },
   "interface": {
     "displayName": "Modellix Agent Canvas",
     "shortDescription": "Create and edit images through Modellix in compatible MCP applications.",

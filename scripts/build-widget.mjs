@@ -14,6 +14,7 @@ try {
     build: { outDir: buildDirectory, emptyOutDir: true },
   });
   const html = await createSingleFileWidget(buildDirectory);
+  assertNoGoogleApiKeys(html);
   await mkdir(path.dirname(outputFile), { recursive: true });
   const pendingFile = `${outputFile}.${process.pid}.tmp`;
   await writeFile(pendingFile, html, "utf8");
@@ -74,4 +75,10 @@ function escapeClosingTag(source, tagName) {
 
 function migrateDeprecatedUnloadHandler(source) {
   return source.replace(/window,\s*["']unload["']\s*,\s*this\.onUnload/gu, 'window,"pagehide",this.onUnload');
+}
+
+function assertNoGoogleApiKeys(source) {
+  if (/AIzaSy[A-Za-z0-9_-]{20,}/u.test(source)) {
+    throw new Error("Widget build contains a literal Google API key.");
+  }
 }

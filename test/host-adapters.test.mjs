@@ -32,7 +32,7 @@ test("host manifests use the documented config shapes and the same release versi
   assert.equal(openPlugin.skills, "./skills/");
   assert.equal(openPlugin.mcpServers, "./.mcp.json");
   assert.equal(codex.version, pkg.version);
-  assert.equal(codex.mcpServers, "./.mcp.codex.json");
+  assert.deepEqual(codex.mcpServers, codexMcp.mcpServers);
   assert.equal(DEFAULT_PROFILE, "default");
   assert.equal(cursor.version, pkg.version);
   assert.equal(cursor.skills, "./skills/");
@@ -60,9 +60,9 @@ test("host manifests use the documented config shapes and the same release versi
   assert.match(openMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /--host cursor/u);
   assert.equal(openMcp.mcpServers["modellix-agent-canvas"].cwd, undefined);
   assert.doesNotMatch(openMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /workspaceFolder/u);
-  assert.equal(codexMcp.mcpServers["modellix-agent-canvas"].command, "npx");
-  assert.deepEqual(codexMcp.mcpServers["modellix-agent-canvas"].args.slice(0, 4), ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"]);
-  assert.equal(codexMcp.mcpServers["modellix-agent-canvas"].cwd, undefined);
+  assert.equal(codexMcp.mcpServers["modellix-agent-canvas"].command, "node");
+  assert.deepEqual(codexMcp.mcpServers["modellix-agent-canvas"].args.slice(0, 1), ["./codex-bootstrap.mjs"]);
+  assert.equal(codexMcp.mcpServers["modellix-agent-canvas"].cwd, ".");
   assert.match(codexMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /--host codex/u);
   assert.doesNotMatch(codexMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /workspaceFolder|--project-dir/u);
   assert.equal(claudeMcp.mcpServers["modellix-agent-canvas"].command, "npx");
@@ -95,6 +95,7 @@ test("OpenCode skill mirrors are byte-identical to canonical skills", async () =
 
 test("public adapters contain production placeholders but no QA origins or literal API keys", async () => {
   const files = [
+    "codex-bootstrap.mjs",
     ".mcp.json",
     ".mcp.codex.json",
     ".mcp.claude.json",

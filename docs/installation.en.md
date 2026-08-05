@@ -5,7 +5,7 @@ Modellix Agent Canvas is a local `stdio` MCP plugin and does not require a deplo
 To diagnose Node.js, runtime dependencies, the bundled Widget, and package version on any host, run:
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas --doctor
+npx -y --package @modellix/agent-canvas@0.1.15 modellix-agent-canvas --doctor
 ```
 
 ## Requirements
@@ -24,7 +24,7 @@ codex plugin marketplace add Modellix/modellix-agent-canvas
 codex plugin add modellix-agent-canvas@modellix
 ```
 
-The Git marketplace installs the plugin files directly from the repository root. Its bundled Codex MCP adapter starts the pinned npm runtime with `npx`, so runtime dependencies are resolved normally instead of being assumed to exist in Codex's plugin cache.
+The Git marketplace installs the plugin files directly from the repository root. Its bundled Codex MCP adapter starts one Node bootstrap process. On first use the bootstrap installs the pinned npm package into a user-local cache; warm starts validate and import that runtime in the same process, avoiding a persistent `npx` wrapper while still supporting sparse plugin caches and one-step installation.
 
 You can also install **Modellix Agent Canvas** from the Modellix source in `/plugins` or the desktop Plugins directory. Start a new task after installation so the session loads the skills and MCP tools.
 
@@ -40,7 +40,7 @@ For a personal Marketplace from GitHub or a local checkout, open **Customize →
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.14", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -57,7 +57,7 @@ claude plugin marketplace add Modellix/modellix-agent-canvas
 claude plugin install modellix-agent-canvas@modellix
 ```
 
-Run `/reload-plugins`, then `/mcp`. The adapter binds `${CLAUDE_PROJECT_DIR}` and starts the same pinned npm runtime used by Codex, Cursor, and OpenCode. This ensures production dependencies are installed even when the Marketplace cache contains only plugin files. It does not store an API Key in plugin configuration.
+Run `/reload-plugins`, then `/mcp`. The adapter binds `${CLAUDE_PROJECT_DIR}` and starts the same pinned npm package version used by the other hosts. This ensures production dependencies are installed even when the Marketplace cache contains only plugin files. It does not store an API Key in plugin configuration.
 
 ## OpenCode
 
@@ -69,7 +69,7 @@ Merge this server into the project's `opencode.json`:
   "mcp": {
     "modellix-agent-canvas": {
       "type": "local",
-      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.14", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
       "cwd": ".",
       "enabled": true
     }
@@ -86,7 +86,7 @@ Configure the host to run:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.14", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
+  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
 }
 ```
 

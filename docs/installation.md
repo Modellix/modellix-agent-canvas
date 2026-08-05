@@ -5,7 +5,7 @@ Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服�
 任意宿主都可以用以下命令检查 Node.js、运行依赖、内置 Widget 和包版本：
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas --doctor
+npx -y --package @modellix/agent-canvas@0.1.15 modellix-agent-canvas --doctor
 ```
 
 ## 安装前检查
@@ -26,7 +26,7 @@ codex plugin marketplace add Modellix/modellix-agent-canvas
 codex plugin add modellix-agent-canvas@modellix
 ```
 
-Git Marketplace 会直接从仓库根目录安装插件文件；其中的 Codex MCP 适配器再通过 `npx` 启动固定版本 npm 运行包。这样运行依赖会由 npm 正常解析，不依赖 Codex 插件缓存中存在 `node_modules`。
+Git Marketplace 会直接从仓库根目录安装插件文件。Codex MCP 适配器只启动一个 Node bootstrap：首次使用时把固定版本 npm 运行包安装到用户级缓存，热启动校验缓存后在同一进程内载入 MCP。这样既不依赖 Codex 插件缓存中存在 `node_modules`，也不再常驻 `npx` 包装进程。
 
 也可以进入 Codex CLI 的 `/plugins` 或桌面端 Plugins 页面，从 Modellix Marketplace 选择 **Modellix Agent Canvas**。安装后新建任务，让新会话加载 Skills 和 MCP 工具。
 
@@ -55,7 +55,7 @@ Cursor Directory 是独立的社区目录，会从仓库的 `.plugin/plugin.json
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.14", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -93,7 +93,7 @@ claude plugin install modellix-agent-canvas@modellix
   "mcp": {
     "modellix-agent-canvas": {
       "type": "local",
-      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.14", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
       "cwd": ".",
       "enabled": true
     }
@@ -113,7 +113,7 @@ OpenCode V2 beta 使用嵌套的 `mcp.servers` 结构，应改用 `adapters/open
   "args": [
     "-y",
     "--package",
-    "@modellix/agent-canvas@0.1.14",
+    "@modellix/agent-canvas@0.1.15",
     "modellix-agent-canvas",
     "--host",
     "generic",
