@@ -1,7 +1,7 @@
 {
   "name": "modellix-agent-canvas",
   "displayName": "Modellix Agent Canvas",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "A general-purpose local stdio MCP canvas using Modellix for image generation and editing.",
   "author": {
     "name": "Modellix",
@@ -11,7 +11,7 @@
   "homepage": "https://www.modellix.ai",
   "repository": "https://github.com/Modellix/modellix-agent-canvas",
   "license": "MIT",
-  "logo": "./assets/modellix-icon.svg",
+  "logo": "./assets/modellix-marketplace-icon.svg",
   "keywords": ["modellix", "canvas", "mcp", "mcp-apps", "image-generation", "image-editing"],
   "category": "Productivity",
   "tags": ["modellix", "canvas", "mcp", "image-generation", "image-editing"],

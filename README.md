@@ -51,7 +51,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 
 Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Run `npx -y --package @modellix/agent-canvas@0.1.13 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
+Run `npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
 
 ## Quick start
 
@@ -115,7 +115,7 @@ Use the adapter intended for the target host. The root `.mcp.json` and `.plugin/
 The root `mcp.json` runs:
 
 ```text
-npx -y --package @modellix/agent-canvas@0.1.13 modellix-agent-canvas --host cursor --supports-mcp-apps true
+npx -y --package @modellix/agent-canvas@0.1.14 modellix-agent-canvas --host cursor --supports-mcp-apps true
 ```
 
 The template does not contain an API Key. Cursor supplies the active workspace through MCP Roots; the template intentionally avoids unportable `${workspaceFolder}` interpolation.
@@ -128,7 +128,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.13` from the active workspace and use the local page fallback.
+For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.14` from the active workspace and use the local page fallback.
 
 ## API Key and privacy
 
