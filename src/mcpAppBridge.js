@@ -11,7 +11,7 @@ let appInstance = null
 export function initializeMcpAppBridge() {
   if (window.parent === window || appInstance) return appInstance
   const app = new App(
-    { name: 'modellix-agent-canvas', version: '0.1.11' },
+    { name: 'modellix-agent-canvas', version: '0.1.12' },
     { availableDisplayModes: ['inline', 'fullscreen'] },
     { autoResize: true }
   )

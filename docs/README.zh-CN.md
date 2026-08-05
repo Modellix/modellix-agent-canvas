@@ -14,19 +14,19 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 
 从画布占位符开始，配置生成规格、输出数量、背景与质量；付费任务仍需在提交前单独确认。
 
-![AI 图片工作流](images/image-workflow.webp)
+![AI 图片工作流](images/zh-CN/image-workflow.webp)
 
 ### HTML 安全草稿
 
 在右侧编辑源码并实时查看隔离预览，可生成画布截图或导出源码 ZIP。
 
-![HTML 安全草稿](images/html-draft.webp)
+![HTML 安全草稿](images/zh-CN/html-draft.webp)
 
 ### 演示文稿编辑器
 
 快速创建多种比例与布局的可编辑幻灯片，并播放或导出 PNG 序列。
 
-![演示文稿编辑器](images/presentation-editor.webp)
+![演示文稿编辑器](images/zh-CN/presentation-editor.webp)
 
 ## 功能
 
@@ -103,7 +103,7 @@ codex plugin add modellix-agent-canvas@modellix
 
 ### Cursor
 
-Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。所有入口都通过 `npx -y --package @modellix/agent-canvas@0.1.11 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
+Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。所有入口都通过 `npx -y --package @modellix/agent-canvas@0.1.12 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
 
 ### Claude Code
 
@@ -122,7 +122,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.11 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
+OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.12 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
 
 更完整的配置边界与验证状态见 [宿主兼容说明](host-compatibility.md)。
 

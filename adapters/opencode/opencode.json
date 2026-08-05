@@ -3,7 +3,7 @@
   "mcp": {
     "modellix-agent-canvas": {
       "type": "local",
-      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.11", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.12", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
       "cwd": ".",
       "enabled": true
     }
