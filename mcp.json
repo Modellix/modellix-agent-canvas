@@ -3,7 +3,7 @@
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.15", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }

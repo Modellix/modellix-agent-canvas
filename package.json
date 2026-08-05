@@ -1,7 +1,7 @@
 {
   "name": "@modellix/agent-canvas",
-  "version": "0.1.15",
-  "mcpName": "io.github.modellix/agent-canvas",
+  "version": "0.1.16",
+  "mcpName": "io.github.Modellix/agent-canvas",
   "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
   "author": {
     "name": "Modellix",
