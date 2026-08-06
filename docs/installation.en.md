@@ -5,8 +5,10 @@ Modellix Agent Canvas is a local `stdio` MCP plugin and does not require a deplo
 To diagnose Node.js, runtime dependencies, the bundled Widget, and package version on any host, run:
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas --doctor
+npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor
 ```
+
+Run the diagnostic from outside the source checkout. A successful cold run reports version `0.1.16`, a supported Node.js version, `runtimeDependencies.complete: true`, and `widget.bundled: true`. The command uses an npm-managed temporary install and is only a verification tool; host installation remains the single supported setup path.
 
 ## Requirements
 
@@ -95,6 +97,8 @@ The project directory must be an existing real absolute directory, not a symlink
 ## First use and API Key
 
 Call `get_modellix_canvas_status` and `open_modellix_canvas` with the host's active project root as `workspacePath`. The Codex skill supplies this automatically. The path must be an existing real absolute directory, and one MCP session binds to one workspace. If the status is `missing` or `invalid`, Canvas embeds an isolated five-minute loopback password form directly in its credential card. Submit the Key there once; the bundled CLI validates and stores it, and Canvas refreshes status automatically. The Key does not enter Canvas state or MCP arguments. `start_modellix_api_key_setup` remains available for integrations that need the same short-lived form explicitly.
+
+For a no-charge first walkthrough, drop the repository's [`docs/images/demo/creative-studio.webp`](images/demo/creative-studio.webp) onto Canvas, select it, enter an edit instruction, and click **Prepare edit**. Review the actual route and price disclosure, then choose **Back to edit** unless the displayed total is explicit and within your budget. Continue with **HTML → Create screenshot** and **Presentation → Create presentation** to exercise project persistence and visual composition without submitting a paid image task.
 
 ## Upgrade and uninstall
 

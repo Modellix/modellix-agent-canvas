@@ -5,8 +5,10 @@ Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服�
 任意宿主都可以用以下命令检查 Node.js、运行依赖、内置 Widget 和包版本：
 
 ```bash
-npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas --doctor
+npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor
 ```
+
+请在源码目录之外执行该诊断。全新 npm 缓存下成功运行时，应返回版本 `0.1.16`、受支持的 Node.js 版本、`runtimeDependencies.complete: true` 和 `widget.bundled: true`。该命令只用于验证 npm 临时安装结果；宿主安装仍是唯一正式安装路径。
 
 ## 安装前检查
 
@@ -139,6 +141,8 @@ open_modellix_canvas { "workspacePath": "<同一当前项目绝对路径>" }
 如果状态为 `missing` 或 `invalid`，Canvas 会直接在凭证卡片内显示密码输入框。该输入框由隔离的本机一次性表单承载，5 分钟后失效；提交后会通过内置 CLI 验证、写入系统凭证库并自动刷新状态。Key 不会进入 Canvas 状态或 MCP 参数。不要把 Key 发送到聊天、URL、仓库、截图或项目文件。`start_modellix_api_key_setup` 可供集成方显式取得同一短时表单。
 
 配置成功后 Canvas 会自动执行状态检测；也可以手动执行 `get_modellix_canvas_status`。Codex skill 会自动传递宿主当前项目路径；路径必须是现有的真实绝对目录，且一个 MCP 会话只能绑定一个工作区。有效 Key 会保存在操作系统凭证库；若已配置兼容的 `modellix-cli` 当前 Profile，插件会直接复用。
+
+如需零费用完成第一次真实流程，可把仓库中的 [`docs/images/demo/creative-studio.webp`](images/demo/creative-studio.webp) 拖入 Canvas，选中后填写编辑要求并点击 **准备编辑**。检查实际路由和价格信息；除非界面明确显示总价且符合预算，否则选择 **返回修改**。随后继续体验 **HTML → 生成截图** 和 **演示文稿 → 创建演示文稿**，即可在不提交付费图片任务的前提下验证项目持久化与视觉编排。
 
 ## 升级与卸载
 

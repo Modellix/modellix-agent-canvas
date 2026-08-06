@@ -10,11 +10,29 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 
 ## 产品截图
 
-### AI 图片工作流
+以下截图来自同一次真实本地 Canvas 会话。可复现流程直接使用仓库中的原创本地素材 [`images/demo/creative-studio.webp`](images/demo/creative-studio.webp)，因此无需先创建付费生图任务，也能完整体验图片编辑、HTML 截图回写和演示文稿。
 
-从画布占位符开始，配置生成规格、输出数量、背景与质量；付费任务仍需在提交前单独确认。
+下面不是互不相关的功能拼图，而是同一个 **Lumen 创意方向** 项目连续验证的七个能力点：
+
+1. 把真实本地图片作为普通素材导入无限画布。
+2. 直接把选中图片设为主参考图，发起可控的局部编辑。
+3. 在任何付费提交前检查实际模型、有效规格、数量和价格披露。
+4. 在 CSP 隔离预览旁编辑 HTML，并把渲染结果截图回写画布。
+5. 把同一套视觉方向复用到五页演示文稿中。
+6. 使用内置播放模式连续查看幻灯片。
+7. 导出 PNG/SVG、演示文稿 PNG 序列，或备份与恢复整个项目。
+
+### 真实图片工作流
+
+把图片拖入画布，或选择已完成的生成结果，再只描述需要修改的部分。选中图片会成为主参考图；准备任务前仍可调整输出尺寸、数量、背景、质量和其他有序参考图。
 
 ![AI 图片工作流](images/zh-CN/image-workflow.webp)
+
+### 付费前检查真实路由
+
+`prepare_modellix_image_task` 免费，会在独立确认步骤中展示实际模型、路由原因、请求/实际规格、数量和可用的价格信息。本次文档实测未取得报价，因此没有提交付费任务；有固定预算时，不要确认未给出明确总价的任务。
+
+![付费图片任务预览](images/zh-CN/paid-preview.webp)
 
 ### HTML 安全草稿
 
@@ -24,9 +42,31 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 
 ### 演示文稿编辑器
 
-快速创建多种比例与布局的可编辑幻灯片，并播放或导出 PNG 序列。
+快速创建多种比例与布局的可编辑幻灯片，把视觉素材拖入普通幻灯片元素，并播放或导出 PNG 序列。
 
 ![演示文稿编辑器](images/zh-CN/presentation-editor.webp)
+
+### 全屏播放
+
+同一张图片主导的幻灯片可直接进入内置播放模式，并使用上一页、下一页和页码连续演示。
+
+![演示文稿全屏播放](images/zh-CN/presentation-playback.webp)
+
+### 导出与项目备份
+
+当前页面可导出 1×、2×、4× PNG 或 SVG；演示文稿可导出 PNG 序列，整个项目也可备份并恢复。
+
+![导出与项目备份](images/zh-CN/export-workflow.webp)
+
+### 复现这套真实流程
+
+1. 从下方任选一个宿主入口安装插件，然后在真实项目工作区中打开。
+2. 使用同一个工作区绝对路径调用 `get_modellix_canvas_status` 和 `open_modellix_canvas`。
+3. 把 [`creative-studio.webp`](images/demo/creative-studio.webp) 拖入画布，选中图片并填写编辑要求。
+4. 选择 `16:9 · 横向`，点击 **准备编辑**，检查实际模型、路由、有效规格、数量和价格信息；准备步骤不收费。
+5. 只有明确总价符合预算时才确认。否则点击 **返回修改**；本流程不要求产生付费任务。
+6. 打开 **HTML**，保存隔离草稿，再点击 **生成截图**，把渲染结果回写画布。
+7. 打开 **演示文稿**，创建起步模板，把视觉素材拖入幻灯片，最后使用 **播放** 或 **PNG 序列**。
 
 ## 功能
 
@@ -50,6 +90,8 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 - 一个可用的 Modellix API Key，可在 [Modellix 控制台](https://www.modellix.ai/console/api-key) 创建
 
 发布包会自动安装精确版本 `modellix-cli 0.0.8` 作为通用运行依赖，用户不需要全局安装 CLI。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
+
+如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
 
 ## 最快使用方式
 

@@ -10,11 +10,29 @@ It supports Codex, Cursor, Claude Code, OpenCode, and other applications that im
 
 ## Product tour
 
-### AI image workflow
+These screenshots come from one real local Canvas session. The reproducible walkthrough uses the original local artwork in [`docs/images/demo/creative-studio.webp`](docs/images/demo/creative-studio.webp), so you can explore image editing, HTML capture, and presentations without first creating a paid image task.
 
-Start with a canvas placeholder, then choose the output size, count, background, quality, and placement behavior. Paid generation is still protected by a separate preview and confirmation step.
+The single **Lumen Creative Direction** story below verifies seven connected capabilities instead of showing unrelated examples:
+
+1. Import a real local image as an ordinary canvas asset.
+2. Turn the selection into the primary reference for a controlled image edit.
+3. Inspect the routed model, effective specification, quantity, and price disclosure before any paid submission.
+4. Edit HTML beside a CSP-restricted live preview and capture the rendered result back to Canvas.
+5. Reuse the same visual direction in a five-slide presentation.
+6. Play the deck in a clean full-screen sequence.
+7. Export the page as PNG/SVG, export the deck as a PNG sequence, or back up and restore the project.
+
+### A real image workflow
+
+Drop an image onto the canvas or select a completed generation, then describe only the change you want. The selected image becomes the primary reference; output size, count, background, quality, and additional ordered references remain editable before preparation.
 
 ![AI image workflow](docs/images/en/image-workflow.webp)
+
+### Review the route before spending
+
+`prepare_modellix_image_task` is free. It shows the actual model, routing reason, requested and effective specifications, quantity, and the available price disclosure before a separate confirmation. This documentation run returned an unavailable quote, so no paid submission was made; do not confirm an unquoted task when you have a fixed budget.
+
+![Paid image task preview](docs/images/en/paid-preview.webp)
 
 ### Safe HTML drafts
 
@@ -24,9 +42,31 @@ Edit HTML source beside an isolated live preview, capture it back to the canvas,
 
 ### Presentation editor
 
-Create editable slide decks from several layouts, manage slides visually, present them, or export a PNG sequence.
+Create editable slide decks from several layouts, drop visual assets into ordinary slide elements, manage the sequence visually, present it, or export a PNG sequence.
 
 ![Presentation editor](docs/images/en/presentation-editor.webp)
+
+### Full-screen playback
+
+The same image-led slide plays in the built-in presenter with previous/next controls and a visible slide count.
+
+![Presentation playback](docs/images/en/presentation-playback.webp)
+
+### Export and project backup
+
+Export the current page at 1×, 2×, or 4× PNG, save SVG, download a presentation PNG sequence, or create and restore a project backup.
+
+![Export and project backup](docs/images/en/export-workflow.webp)
+
+### Reproduce the walkthrough
+
+1. Install the plugin through one host path below, then open it in a real project workspace.
+2. Call `get_modellix_canvas_status` and `open_modellix_canvas` with the same absolute workspace path.
+3. Drop [`creative-studio.webp`](docs/images/demo/creative-studio.webp) onto the canvas, select it, and enter an edit instruction.
+4. Choose `16:9 · Landscape`, click **Prepare edit**, and inspect the returned model, route, effective specification, quantity, and price disclosure. Preparation is free.
+5. Confirm only when the disclosed total fits your budget. Otherwise choose **Back to edit**; the walkthrough does not require a paid submission.
+6. Open **HTML**, save the isolated draft, and choose **Create screenshot** to insert the rendered result back into Canvas.
+7. Open **Presentation**, create a starter deck, and drop the visual into a slide. Use **Play** or **PNG sequence** to finish.
 
 ## What it includes
 
@@ -51,7 +91,7 @@ Create editable slide decks from several layouts, manage slides visually, presen
 
 Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Run `npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas --doctor` on any supported host to verify Node.js, production dependencies, the bundled Widget, and the active package version.
+Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
 
 ## Quick start
 
