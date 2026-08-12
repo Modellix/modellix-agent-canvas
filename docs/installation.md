@@ -5,10 +5,10 @@ Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服�
 任意宿主都可以用以下命令检查 Node.js、运行依赖、内置 Widget 和包版本：
 
 ```bash
-npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor
+npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor
 ```
 
-请在源码目录之外执行该诊断。全新 npm 缓存下成功运行时，应返回版本 `0.1.16`、受支持的 Node.js 版本、`runtimeDependencies.complete: true` 和 `widget.bundled: true`。该命令只用于验证 npm 临时安装结果；宿主安装仍是唯一正式安装路径。
+请在源码目录之外执行该诊断。全新 npm 缓存下成功运行时，应返回版本 `0.1.17`、受支持的 Node.js 版本、`runtimeDependencies.complete: true` 和 `widget.bundled: true`。该命令只用于验证 npm 临时安装结果；宿主安装仍是唯一正式安装路径。
 
 ## 安装前检查
 
@@ -18,6 +18,16 @@ npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas 
 - 一个可用的 [Modellix API Key](https://www.modellix.ai/console/api-key)
 
 安装配置不得包含 API Key。首次连接后直接在 Canvas 凭证卡片的隔离输入框中配置。Canvas 默认英语，可通过右上角在英语、简体中文和日语之间切换，凭证输入框会同步使用所选语言。
+
+## Agent Plugins 1.0.0 兼容客户端
+
+通过任意[兼容 Agent Plugins 的客户端](https://agent-plugins.org/compatible-clients)安装本仓库目录或已发布 npm 包。客户端按固定位置发现可移植核心：
+
+- `plugin.json` 指向 `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`。
+- `mcp.json` 指向 `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`，并声明通用 `stdio` 服务。
+- `skills/` 包含三个可发现的 Agent Skills。
+
+可移植适配器通过 MCP Roots 或工具的 `workspacePath` 参数绑定当前项目，默认返回本地页 Canvas；支持更丰富原生集成的宿主仍可读取各自的专用目录。
 
 ## Codex
 
@@ -49,7 +59,7 @@ codex plugin list
 
 从 GitHub 或本地检出添加个人 Marketplace 时，进入 **Customize → Plugins → + Add**，选择包含 `.cursor-plugin/marketplace.json` 的仓库根目录，再从 `modellix` Marketplace 安装 **Modellix Agent Canvas**。
 
-Cursor Directory 是独立的社区目录，会从仓库的 `.plugin/plugin.json`、根 `.mcp.json` 和三个 Skills 自动发现插件；该适配器启动固定版本 npm 包，并通过 MCP roots 绑定当前工作区。也可以把仓库根目录的 `mcp.json` 配置加入 Cursor，直接使用标准 MCP。等价的项目配置如下：
+Cursor Directory 是独立的社区目录，会从仓库的 `.plugin/plugin.json`、`.mcp.json` 和三个 Skills 自动发现插件；该适配器启动固定版本 npm 包，并通过 MCP roots 绑定当前工作区。也可以把仓库根目录的 `.mcp.json` 配置加入 Cursor，直接使用 Cursor 专用 MCP Apps 适配。等价的项目配置如下：
 
 ```json
 {
@@ -57,7 +67,7 @@ Cursor Directory 是独立的社区目录，会从仓库的 `.plugin/plugin.json
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -95,7 +105,7 @@ claude plugin install modellix-agent-canvas@modellix
   "mcp": {
     "modellix-agent-canvas": {
       "type": "local",
-      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
       "cwd": ".",
       "enabled": true
     }
@@ -115,7 +125,7 @@ OpenCode V2 beta 使用嵌套的 `mcp.servers` 结构，应改用 `adapters/open
   "args": [
     "-y",
     "--package",
-    "@modellix/agent-canvas@0.1.16",
+    "@modellix/agent-canvas@0.1.17",
     "modellix-agent-canvas",
     "--host",
     "generic",

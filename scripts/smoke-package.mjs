@@ -81,6 +81,7 @@ try {
   }
   for (const required of [
     ".agents/plugins/marketplace.json",
+    "plugin.json",
     ".claude-plugin/marketplace.json",
     ".codex-plugin/plugin.json",
     ".cursor-plugin/marketplace.json",

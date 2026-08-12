@@ -15,9 +15,9 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-import { imageSize } from "image-size";
 import { lock } from "proper-lockfile";
 
+import { readImageDimensions } from "./image-dimensions.mjs";
 import { ModellixCanvasError } from "./modellix-errors.mjs";
 import { normalizeLanguage } from "./modellix-i18n.mjs";
 
@@ -933,7 +933,7 @@ function parseDataUrl(value) {
 function safeImageDimensions(bytes, mimeType) {
   if (mimeType === "image/svg+xml") return {};
   try {
-    const dimensions = imageSize(bytes);
+    const dimensions = readImageDimensions(bytes, mimeType);
     if (!dimensions.width || !dimensions.height || dimensions.width > 32768 || dimensions.height > 32768 || dimensions.width * dimensions.height > MAX_IMAGE_PIXELS) throw new Error("invalid dimensions");
     return { width: dimensions.width, height: dimensions.height };
   } catch {

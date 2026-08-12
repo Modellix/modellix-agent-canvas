@@ -11,9 +11,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const json = async (...parts) => JSON.parse(await readFile(path.join(root, ...parts), "utf8"));
 
 test("host manifests use the documented config shapes and the same release version", async () => {
-  const [pkg, server, openPlugin, codex, cursor, claude, codexMarketplace, cursorMarketplace, claudeMarketplace, openMcp, codexMcp, cursorMcp, claudeMcp, opencode, opencodeV2] = await Promise.all([
+  const [pkg, server, agentPlugin, openPlugin, codex, cursor, claude, codexMarketplace, cursorMarketplace, claudeMarketplace, openMcp, codexMcp, agentMcp, claudeMcp, opencode, opencodeV2] = await Promise.all([
     json("package.json"),
     json("server.json"),
+    json("plugin.json"),
     json(".plugin", "plugin.json"),
     json(".codex-plugin", "plugin.json"),
     json(".cursor-plugin", "plugin.json"),
@@ -28,6 +29,23 @@ test("host manifests use the documented config shapes and the same release versi
     json("adapters", "opencode", "opencode.json"),
     json("adapters", "opencode", "opencode-v2.json"),
   ]);
+  assert.equal(agentPlugin.$schema, "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
+  assert.equal(agentPlugin.name, "modellix-agent-canvas");
+  assert.equal(agentPlugin.version, pkg.version);
+  assert.equal(agentPlugin.skills, undefined);
+  assert.equal(agentPlugin.mcpServers, undefined);
+  assert.deepEqual(
+    Object.keys(agentPlugin).sort(),
+    ["$schema", "author", "description", "homepage", "keywords", "license", "name", "repository", "version"].sort(),
+  );
+  assert.equal(agentMcp.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
+  assert.equal(agentMcp.mcpServers["modellix-agent-canvas"].type, "stdio");
+  assert.deepEqual(
+    agentMcp.mcpServers["modellix-agent-canvas"].args.slice(0, 4),
+    ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"],
+  );
+  assert.match(agentMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /--host generic/u);
+  assert.match(agentMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /--supports-mcp-apps false/u);
   assert.equal(openPlugin.version, pkg.version);
   assert.equal(openPlugin.skills, "./skills/");
   assert.equal(openPlugin.mcpServers, "./.mcp.json");
@@ -36,7 +54,7 @@ test("host manifests use the documented config shapes and the same release versi
   assert.equal(DEFAULT_PROFILE, "default");
   assert.equal(cursor.version, pkg.version);
   assert.equal(cursor.skills, "./skills/");
-  assert.equal(cursor.mcpServers, "./mcp.json");
+  assert.equal(cursor.mcpServers, "./.mcp.json");
   assert.equal(claude.version, pkg.version);
   assert.equal(claude.mcpServers, "./.mcp.claude.json");
   assert.equal(pkg.name, "@modellix/agent-canvas");
@@ -71,12 +89,12 @@ test("host manifests use the documented config shapes and the same release versi
   assert.match(claudeMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /CLAUDE_PROJECT_DIR/u);
   assert.doesNotMatch(claudeMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /CLAUDE_PLUGIN_ROOT/u);
   assert.equal(claudeMcp.mcpServers["modellix-agent-canvas"].env.MODELLIX_API_KEY, undefined);
-  assert.equal(cursorMcp.mcpServers["modellix-agent-canvas"].env, undefined);
+  assert.equal(openMcp.mcpServers["modellix-agent-canvas"].env, undefined);
   assert.deepEqual(opencode.mcp["modellix-agent-canvas"].command.slice(0, 5), ["npx", "-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"]);
   assert.equal(opencode.mcp["modellix-agent-canvas"].enabled, true);
   assert.deepEqual(opencodeV2.mcp.servers["modellix-agent-canvas"].command.slice(0, 5), ["npx", "-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"]);
-  assert.deepEqual(cursorMcp.mcpServers["modellix-agent-canvas"].args.slice(0, 4), ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"]);
-  assert.doesNotMatch(cursorMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /workspaceFolder|--project-dir/u);
+  assert.deepEqual(openMcp.mcpServers["modellix-agent-canvas"].args.slice(0, 4), ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"]);
+  assert.doesNotMatch(openMcp.mcpServers["modellix-agent-canvas"].args.join(" "), /workspaceFolder|--project-dir/u);
   assert.equal(opencode.mcp["modellix-agent-canvas"].environment, undefined);
   assert.equal(opencodeV2.mcp.servers["modellix-agent-canvas"].environment, undefined);
 });
@@ -96,6 +114,7 @@ test("OpenCode skill mirrors are byte-identical to canonical skills", async () =
 test("public adapters contain production placeholders but no QA origins or literal API keys", async () => {
   const files = [
     "codex-bootstrap.mjs",
+    "plugin.json",
     ".mcp.json",
     ".mcp.codex.json",
     ".mcp.claude.json",

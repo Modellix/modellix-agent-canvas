@@ -5,10 +5,10 @@ Modellix Agent Canvas is a local `stdio` MCP plugin and does not require a deplo
 To diagnose Node.js, runtime dependencies, the bundled Widget, and package version on any host, run:
 
 ```bash
-npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor
+npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor
 ```
 
-Run the diagnostic from outside the source checkout. A successful cold run reports version `0.1.16`, a supported Node.js version, `runtimeDependencies.complete: true`, and `widget.bundled: true`. The command uses an npm-managed temporary install and is only a verification tool; host installation remains the single supported setup path.
+Run the diagnostic from outside the source checkout. A successful cold run reports version `0.1.17`, a supported Node.js version, `runtimeDependencies.complete: true`, and `widget.bundled: true`. The command uses an npm-managed temporary install and is only a verification tool; host installation remains the single supported setup path.
 
 ## Requirements
 
@@ -18,6 +18,16 @@ Run the diagnostic from outside the source checkout. A successful cold run repor
 - A valid [Modellix API Key](https://www.modellix.ai/console/api-key)
 
 Never place the API Key in an MCP configuration. Configure it in the isolated credential field embedded directly in Canvas after the first connection. Canvas defaults to English; the upper-right language switch changes English, Simplified Chinese, or Japanese and also localizes this credential field.
+
+## Agent Plugins 1.0.0 clients
+
+Install the repository directory or the published npm package with any [compatible Agent Plugins client](https://agent-plugins.org/compatible-clients). Clients discover the portable core from fixed locations:
+
+- `plugin.json` targets `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`.
+- `mcp.json` targets `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json` and declares the generic `stdio` server.
+- `skills/` contains the three discoverable Agent Skills.
+
+The portable adapter uses MCP Roots or the `workspacePath` tool input to bind the active project and defaults to the local-page Canvas fallback. Host-specific directories remain available when a client supports richer native integration.
 
 ## Codex
 
@@ -32,7 +42,7 @@ You can also install **Modellix Agent Canvas** from the Modellix source in `/plu
 
 ## Cursor 2.6+
 
-Install it from Cursor Marketplace with `/add-plugin modellix-agent-canvas`. Cursor Directory discovers the vendor-neutral `.plugin/plugin.json`, root `.mcp.json`, and three skills; that adapter starts the pinned npm package and binds the active workspace through MCP roots. For a direct MCP setup, add the repository's `mcp.json` or this equivalent configuration:
+Install it from Cursor Marketplace with `/add-plugin modellix-agent-canvas`. Cursor Directory discovers `.plugin/plugin.json`, `.mcp.json`, and three skills; that adapter starts the pinned npm package and binds the active workspace through MCP roots. For a direct Cursor MCP setup, add the repository's `.mcp.json` or this equivalent configuration:
 
 For a personal Marketplace from GitHub or a local checkout, open **Customize → Plugins → + Add** and select the repository root. Cursor discovers `.cursor-plugin/marketplace.json` and lists **Modellix Agent Canvas** under the `modellix` Marketplace. Cursor Directory is a separate community directory and continues to use the Open Plugins files above.
 
@@ -42,7 +52,7 @@ For a personal Marketplace from GitHub or a local checkout, open **Customize →
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "cursor", "--supports-mcp-apps", "true"]
     }
   }
 }
@@ -71,7 +81,7 @@ Merge this server into the project's `opencode.json`:
   "mcp": {
     "modellix-agent-canvas": {
       "type": "local",
-      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
+      "command": ["npx", "-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "opencode", "--supports-mcp-apps", "false"],
       "cwd": ".",
       "enabled": true
     }
@@ -88,7 +98,7 @@ Configure the host to run:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.16", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
+  "args": ["-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false", "--project-dir", "/absolute/path/to/project"]
 }
 ```
 

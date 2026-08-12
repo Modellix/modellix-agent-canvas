@@ -1,6 +1,6 @@
 # Host compatibility
 
-Last reviewed: 2026-08-04.
+Last reviewed: 2026-08-12.
 
 Modellix Agent Canvas exposes one local `stdio` MCP server and one business contract. Host adapters only decide how the process starts, how the project root is supplied, and whether the host can render MCP Apps. Model routing, API-key persistence, paid confirmation, task recovery, workspace boundaries, and project files are identical in every host.
 
@@ -17,14 +17,16 @@ Do not interpret protocol validation as proof that every future host version ren
 
 | Host | Official integration facts | Adapter | Expected UI |
 | --- | --- | --- | --- |
+| Agent Plugins 1.0.0 clients | The portable package is discovered from root `plugin.json`, root `mcp.json`, and `skills/`; both root documents use the canonical 1.0.0 schemas and the MCP entry declares `stdio` explicitly | `plugin.json`, `mcp.json`, `skills/` | Local fallback by default; the MCP server still exposes standard MCP Apps resource metadata |
 | Codex | `.codex-plugin/plugin.json` embeds the server configuration mirrored by `.mcp.codex.json`; the adapter uses one Node bootstrap to install the pinned npm runtime on first use and import it in-process on warm starts; the open skill supplies the active project as validated `workspacePath` | `.codex-plugin/plugin.json`, `.mcp.codex.json`, `codex-bootstrap.mjs` | MCP Apps Widget; fallback remains available |
-| Cursor 2.6+ | Cursor 2.6 introduced MCP Apps in Agent chat; plugins can package MCP configuration; personal and local Marketplace imports use a Cursor-specific root catalog | `.cursor-plugin/marketplace.json`, `.cursor-plugin/plugin.json`, `mcp.json` | MCP Apps |
+| Cursor 2.6+ | Cursor 2.6 introduced MCP Apps in Agent chat; plugins can package MCP configuration; personal and local Marketplace imports use a Cursor-specific root catalog | `.cursor-plugin/marketplace.json`, `.cursor-plugin/plugin.json`, `.mcp.json` | MCP Apps |
 | Claude Code | The plugin manifest explicitly selects `.mcp.claude.json`, so Claude does not fall back to the vendor-neutral root `.mcp.json`; the adapter starts the pinned npm runtime and passes `${CLAUDE_PROJECT_DIR}` while preserving `${CLAUDE_PLUGIN_DATA}` | `.claude-plugin/plugin.json`, `.mcp.claude.json` | local fallback because the referenced terminal documentation does not promise MCP Apps rendering |
 | OpenCode | Stable local MCP servers live directly under `mcp.<server>`, use a command array, optional `cwd`/`environment`, and stdio | `adapters/opencode/opencode.json`, `.agents/skills` | local fallback until MCP Apps is documented and smoke-tested |
 | OpenCode V2 beta | V2 beta local MCP servers live under `mcp.servers` | `adapters/opencode/opencode-v2.json`, `.agents/skills` | local fallback until MCP Apps is documented and smoke-tested |
 
 Official references:
 
+- Agent Plugins: [Specification 1.0.0](https://agent-plugins.org/specification), [compatible clients](https://agent-plugins.org/compatible-clients), [JSON Schemas](https://agent-plugins.org/schemas)
 - Codex: [Build plugins](https://developers.openai.com/plugins/build/plugins), [MCP Apps UI](https://developers.openai.com/plugins/build/chatgpt-ui)
 - Cursor: [Cursor 2.6 MCP Apps release](https://cursor.com/changelog/2-6)
 - Claude Code: [MCP](https://code.claude.com/docs/en/mcp), [Plugins reference](https://code.claude.com/docs/en/plugins-reference)
@@ -49,6 +51,7 @@ Only `open_modellix_canvas` is associated with `ui://modellix-agent-canvas/canva
 ## Workspace mapping
 
 - Codex: the open skill passes the host's active project root as `workspacePath`; MCP Roots or explicit `--project-dir` remain compatible alternatives.
+- Agent Plugins clients: the portable adapter accepts the first MCP Root when the client provides one; otherwise the status/open tools bind the client-supplied absolute `workspacePath`.
 - Cursor: the maintained plugin template uses MCP Roots, which Cursor officially supports, and does not depend on `${workspaceFolder}` interpolation.
 - Claude Code: the plugin template passes `${CLAUDE_PROJECT_DIR}` and starts the same pinned npm runtime as the other hosts, so Marketplace extraction never needs to provide `node_modules`.
 - OpenCode: `cwd: "."` resolves from the workspace in both the stable and V2 beta adapters.

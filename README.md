@@ -91,11 +91,15 @@ Export the current page at 1×, 2×, or 4× PNG, save SVG, download a presentati
 
 Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
+Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
 
 ## Quick start
 
 Install from the host's plugin interface whenever possible.
+
+### Agent Plugins 1.0.0 clients
+
+Install this repository or its npm package through any [compatible Agent Plugins client](https://agent-plugins.org/compatible-clients). The portable core is the root [`plugin.json`](plugin.json), [`mcp.json`](mcp.json), and [`skills/`](skills/) directory. The manifest and MCP configuration target the official 1.0.0 schemas; fixed-location discovery loads the three Agent Skills and the generic `stdio` server without relying on a host-specific manifest.
 
 ### Codex
 
@@ -142,20 +146,21 @@ If status is `missing` or `invalid`, Canvas displays a password input directly i
 
 | Host | Local MCP | Canvas surface | Configuration |
 | --- | --- | --- | --- |
+| Agent Plugins 1.0.0 clients | `stdio` | Portable local-page fallback; MCP Apps metadata remains discoverable | `plugin.json`, `mcp.json`, `skills/` |
 | Codex | `stdio` | MCP Apps widget, with local fallback | `.codex-plugin/plugin.json` (mirrored by `.mcp.codex.json`) |
-| Cursor 2.6+ | `stdio` | MCP Apps | `.cursor-plugin/marketplace.json`, `.cursor-plugin/plugin.json`, `mcp.json` |
+| Cursor 2.6+ | `stdio` | MCP Apps | `.cursor-plugin/marketplace.json`, `.cursor-plugin/plugin.json`, `.mcp.json` |
 | Claude Code | `stdio` | Short-lived local page | `.claude-plugin/plugin.json`, `.mcp.claude.json` |
 | OpenCode | Local MCP command | Short-lived local page | `adapters/opencode/opencode.json`, `.agents/skills` |
 | OpenCode V2 beta | Local MCP command | Short-lived local page | `adapters/opencode/opencode-v2.json`, `.agents/skills` |
 
-Use the adapter intended for the target host. The root `.mcp.json` and `.plugin/plugin.json` are the vendor-neutral Open Plugins entry for Cursor Directory; the Codex manifest embeds the Codex-specific server configuration and `.mcp.codex.json` mirrors it for direct development, while direct Cursor setup uses `mcp.json`. See [host compatibility](docs/host-compatibility.md) for protocol mappings, host-specific UI behavior, and validation status.
+Use the adapter intended for the target host. Root `plugin.json` and `mcp.json` form the portable [Agent Plugins 1.0.0](https://agent-plugins.org/specification) core. `.plugin/plugin.json` and `.mcp.json` remain the legacy Open Plugins entry for Cursor Directory and the Cursor-specific MCP Apps adapter. The Codex manifest embeds its own server configuration and `.mcp.codex.json` mirrors it for direct development. See [host compatibility](docs/host-compatibility.md) for protocol mappings, host-specific UI behavior, and validation status.
 
 ### Standard Cursor MCP configuration
 
-The root `mcp.json` runs:
+The Cursor-specific `.mcp.json` runs:
 
 ```text
-npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas --host cursor --supports-mcp-apps true
+npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas --host cursor --supports-mcp-apps true
 ```
 
 The template does not contain an API Key. Cursor supplies the active workspace through MCP Roots; the template intentionally avoids unportable `${workspaceFolder}` interpolation.
@@ -168,7 +173,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.16` from the active workspace and use the local page fallback.
+For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.17` from the active workspace and use the local page fallback.
 
 ## API Key and privacy
 

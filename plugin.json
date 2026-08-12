@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "modellix-agent-canvas",
+  "version": "0.1.17",
+  "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
+  "author": {
+    "name": "Modellix",
+    "email": "support@modellix.ai",
+    "url": "https://www.modellix.ai"
+  },
+  "homepage": "https://www.modellix.ai",
+  "repository": "https://github.com/Modellix/modellix-agent-canvas",
+  "license": "MIT",
+  "keywords": [
+    "modellix",
+    "canvas",
+    "mcp",
+    "mcp-apps",
+    "image-generation",
+    "image-editing"
+  ]
+}

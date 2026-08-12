@@ -3,6 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const agentManifestPath = path.join(root, "plugin.json");
+const agentRaw = await readFile(agentManifestPath, "utf8");
+const agentManifest = JSON.parse(agentRaw);
+const agentMcp = JSON.parse(await readFile(path.join(root, "mcp.json"), "utf8"));
 const manifestPath = path.join(root, ".codex-plugin", "plugin.json");
 const raw = await readFile(manifestPath, "utf8");
 const manifest = JSON.parse(raw);
@@ -25,6 +29,8 @@ const codexAdapter = JSON.parse(await readFile(path.join(root, ".mcp.codex.json"
 const openCodeAdapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode.json"), "utf8"));
 const openCodeV2Adapter = JSON.parse(await readFile(path.join(root, "adapters", "opencode", "opencode-v2.json"), "utf8"));
 const expectedNpxArgs = ["-y", "--package", `${pkg.name}@${pkg.version}`, "modellix-agent-canvas"];
+const agentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
+const agentMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 
 requiredString(manifest.name, "name");
 if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(manifest.name) || manifest.name.length > 64) {
@@ -34,6 +40,11 @@ if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u.test(manifest.v
   throw new Error("Plugin version must use semantic versioning.");
 }
 if (manifest.version !== pkg.version) throw new Error("Plugin and npm package versions must match.");
+validateAgentManifest(agentManifest, agentPluginSchema);
+validateAgentMcp(agentMcp, agentMcpSchema);
+if (agentManifest.name !== manifest.name || agentManifest.version !== pkg.version) {
+  throw new Error("Agent Plugins manifest identity is out of sync.");
+}
 if (openManifest.name !== manifest.name || openManifest.version !== pkg.version) {
   throw new Error("Open Plugins manifest identity is out of sync.");
 }
@@ -46,7 +57,7 @@ if (claudeManifest.name !== manifest.name || claudeManifest.version !== pkg.vers
 if (claudeManifest.mcpServers !== "./.mcp.claude.json") {
   throw new Error("Claude plugin must explicitly select its Claude-specific MCP adapter instead of auto-discovering .mcp.json.");
 }
-if (cursorManifest.skills !== "./skills/" || cursorManifest.mcpServers !== "./mcp.json") {
+if (cursorManifest.skills !== "./skills/" || cursorManifest.mcpServers !== "./.mcp.json") {
   throw new Error("Cursor plugin must declare its canonical skills and Cursor MCP adapter.");
 }
 for (const field of ["skills", "mcpServers", "logo"]) {
@@ -84,6 +95,14 @@ for (const [file, adapter] of adapters) {
 }
 const codexServer = codexAdapter.mcpServers?.["modellix-agent-canvas"];
 const codexManifestServer = manifest.mcpServers?.["modellix-agent-canvas"];
+const agentServer = agentMcp.mcpServers?.["modellix-agent-canvas"];
+if (
+  agentServer?.type !== "stdio"
+  || agentServer.command !== "npx"
+  || !samePrefix(agentServer.args, [...expectedNpxArgs, "--host", "generic", "--supports-mcp-apps", "false"])
+) {
+  throw new Error("Agent Plugins MCP adapter must use the pinned generic stdio runtime with the local fallback.");
+}
 for (const [label, serverConfig] of [
   ["Codex plugin manifest", codexManifestServer],
   ["Codex standalone adapter", codexServer],
@@ -128,8 +147,11 @@ if (!await exists(path.resolve(root, cursorMarketplaceEntry.source, ".cursor-plu
 }
 requiredString(manifest.description, "description");
 requiredString(manifest.author?.name, "author.name");
+requiredString(agentManifest.description, "agentPlugin.description");
+requiredString(agentManifest.author?.name, "agentPlugin.author.name");
 requiredString(openManifest.description, "openPlugin.description");
 requiredString(openManifest.author?.name, "openPlugin.author.name");
+if (agentManifest.license !== pkg.license) throw new Error("Agent Plugins and npm licenses must match.");
 if (openManifest.license !== pkg.license) throw new Error("Open Plugins and npm licenses must match.");
 requiredString(manifest.interface?.displayName, "interface.displayName");
 requiredString(manifest.interface?.shortDescription, "interface.shortDescription");
@@ -138,6 +160,7 @@ requiredString(manifest.interface?.developerName, "interface.developerName");
 requiredString(manifest.interface?.category, "interface.category");
 
 for (const field of ["homepage", "repository"]) assertHttps(manifest[field], field);
+for (const field of ["homepage", "repository"]) assertHttps(agentManifest[field], `agentPlugin.${field}`);
 for (const field of ["homepage", "repository"]) assertHttps(openManifest[field], `openPlugin.${field}`);
 for (const field of ["websiteURL", "privacyPolicyURL", "termsOfServiceURL"]) {
   assertHttps(manifest.interface?.[field], `interface.${field}`);
@@ -161,9 +184,92 @@ if (!Array.isArray(prompts) || prompts.length > 3 || prompts.some((item) => type
   throw new Error("interface.defaultPrompt must contain at most three strings of at most 128 characters.");
 }
 if (/\[TODO:/u.test(raw)) throw new Error("plugin.json contains an unresolved TODO placeholder.");
+if (/\[TODO:/u.test(agentRaw)) throw new Error("Agent Plugins manifest contains an unresolved TODO placeholder.");
 if (/\[TODO:/u.test(openRaw)) throw new Error("Open Plugins manifest contains an unresolved TODO placeholder.");
 
-process.stdout.write("Plugin manifest OK: required metadata, HTTPS policy links, and companion paths are valid.\n");
+process.stdout.write("Plugin manifests OK: Agent Plugins 1.0.0, host metadata, and companion paths are valid.\n");
+
+function validateAgentManifest(value, expectedSchema) {
+  assertObject(value, "Agent Plugins plugin.json");
+  assertOnlyFields(value, [
+    "$schema", "name", "version", "description", "author", "homepage", "repository", "license", "keywords", "extensions",
+  ], "Agent Plugins plugin.json");
+  if (value.$schema !== expectedSchema) throw new Error(`Agent Plugins plugin.json must target ${expectedSchema}.`);
+  requiredString(value.name, "agentPlugin.name");
+  if (value.name.length > 64 || !/^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(value.name)) {
+    throw new Error("Agent Plugins name violates the 1.0.0 name constraints.");
+  }
+  for (const field of ["version", "description", "homepage", "repository", "license"]) {
+    if (value[field] !== undefined && typeof value[field] !== "string") throw new Error(`agentPlugin.${field} must be a string.`);
+  }
+  if (value.author !== undefined) {
+    assertObject(value.author, "agentPlugin.author");
+    assertOnlyFields(value.author, ["name", "email", "url"], "agentPlugin.author");
+    for (const [field, entry] of Object.entries(value.author)) {
+      if (typeof entry !== "string") throw new Error(`agentPlugin.author.${field} must be a string.`);
+    }
+  }
+  if (value.keywords !== undefined && (!Array.isArray(value.keywords) || value.keywords.some((entry) => typeof entry !== "string"))) {
+    throw new Error("agentPlugin.keywords must be an array of strings.");
+  }
+  if (value.extensions !== undefined) {
+    assertObject(value.extensions, "agentPlugin.extensions");
+    for (const [namespace, extension] of Object.entries(value.extensions)) {
+      if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/u.test(namespace)) throw new Error(`Invalid Agent Plugins extension namespace: ${namespace}`);
+      assertObject(extension, `agentPlugin.extensions.${namespace}`);
+    }
+  }
+}
+
+function validateAgentMcp(value, expectedSchema) {
+  assertObject(value, "Agent Plugins mcp.json");
+  assertOnlyFields(value, ["$schema", "mcpServers"], "Agent Plugins mcp.json");
+  if (value.$schema !== expectedSchema) throw new Error(`Agent Plugins mcp.json must target ${expectedSchema}.`);
+  assertObject(value.mcpServers, "agentMcp.mcpServers");
+  for (const [name, server] of Object.entries(value.mcpServers)) {
+    assertObject(server, `agentMcp.mcpServers.${name}`);
+    if (server.type === "stdio") {
+      assertOnlyFields(server, ["type", "command", "args", "env", "cwd"], `agentMcp.mcpServers.${name}`);
+      requiredString(server.command, `agentMcp.mcpServers.${name}.command`);
+      if (server.args !== undefined && (!Array.isArray(server.args) || server.args.some((entry) => typeof entry !== "string"))) {
+        throw new Error(`agentMcp.mcpServers.${name}.args must be an array of strings.`);
+      }
+      if (server.env !== undefined) {
+        assertObject(server.env, `agentMcp.mcpServers.${name}.env`);
+        for (const [key, entry] of Object.entries(server.env)) {
+          if (["PLUGIN_ROOT", "PLUGIN_DATA"].includes(key) || typeof entry !== "string") {
+            throw new Error(`agentMcp.mcpServers.${name}.env contains an invalid entry: ${key}`);
+          }
+        }
+      }
+      if (server.cwd !== undefined && (typeof server.cwd !== "string" || !/^(?:\.\/|\$\{PLUGIN_ROOT\}(?:\/|$)|\$\{PLUGIN_DATA\}(?:\/|$))/u.test(server.cwd))) {
+        throw new Error(`agentMcp.mcpServers.${name}.cwd is not an Agent Plugins path.`);
+      }
+      continue;
+    }
+    if (server.type === "streamable-http" || server.type === "sse") {
+      assertOnlyFields(server, ["type", "url", "headers"], `agentMcp.mcpServers.${name}`);
+      requiredString(server.url, `agentMcp.mcpServers.${name}.url`);
+      if (server.headers !== undefined) {
+        assertObject(server.headers, `agentMcp.mcpServers.${name}.headers`);
+        if (Object.values(server.headers).some((entry) => typeof entry !== "string")) {
+          throw new Error(`agentMcp.mcpServers.${name}.headers must contain only strings.`);
+        }
+      }
+      continue;
+    }
+    throw new Error(`agentMcp.mcpServers.${name} has an unsupported transport type.`);
+  }
+}
+
+function assertObject(value, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`);
+}
+
+function assertOnlyFields(value, allowed, field) {
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (unknown.length > 0) throw new Error(`${field} contains unsupported fields: ${unknown.join(", ")}`);
+}
 
 function requiredString(value, field) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`plugin.json ${field} is required.`);

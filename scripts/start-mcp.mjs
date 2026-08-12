@@ -14,7 +14,6 @@ const REQUIRED_DEPENDENCIES = new Map([
   ["@modelcontextprotocol/sdk", "@modelcontextprotocol/sdk/server/mcp.js"],
   ["ajv", "ajv/package.json"],
   ["ajv-formats", "ajv-formats/package.json"],
-  ["image-size", "image-size"],
   ["modellix-cli", "modellix-cli/bin/run.js"],
   ["proper-lockfile", "proper-lockfile"],
   ["zod", "zod"],

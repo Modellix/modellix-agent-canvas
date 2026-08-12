@@ -91,7 +91,7 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 
 发布包会自动安装精确版本 `modellix-cli 0.0.8` 作为通用运行依赖，用户不需要全局安装 CLI。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
 
-如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.16 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
+如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
 
 ## 最快使用方式
 
@@ -122,12 +122,13 @@ open_modellix_canvas { "workspacePath": "<同一当前项目绝对路径>" }
 
 ## 宿主配置
 
-仓库为四个宿主提供独立适配文件。根 `.plugin/plugin.json` 与 `.mcp.json` 是供 Cursor Directory 自动发现的 Open Plugins 入口；`.cursor-plugin/marketplace.json` 与 `.cursor-plugin/plugin.json` 是 Cursor 官方、个人和本地 Marketplace 入口；Codex 清单内嵌专用 MCP 配置，`.mcp.codex.json` 提供等价的直接开发入口；直接配置 Cursor 使用 `mcp.json`。
+仓库根 `plugin.json`、`mcp.json` 与 `skills/` 构成符合 [Agent Plugins 1.0.0](https://agent-plugins.org/specification) 的可移植核心。`.plugin/plugin.json` 与 `.mcp.json` 保留为 Cursor Directory 的 Open Plugins 入口和 Cursor 专用 MCP Apps 适配；`.cursor-plugin/marketplace.json` 与 `.cursor-plugin/plugin.json` 是 Cursor 官方、个人和本地 Marketplace 入口；Codex 清单内嵌专用 MCP 配置，`.mcp.codex.json` 提供等价的直接开发入口。
 
 | 宿主 | 本地 MCP | 画布载体 | 配置/清单 |
 | --- | --- | --- | --- |
+| Agent Plugins 1.0.0 兼容客户端 | `stdio` | 可移植本地页回退；同时保留 MCP Apps 元数据 | `plugin.json`、`mcp.json`、`skills/` |
 | Codex | `stdio` | MCP Apps Widget；必要时可回退本地页 | `.codex-plugin/plugin.json`（`.mcp.codex.json` 等价镜像） |
-| Cursor 2.6+ | `stdio` | MCP Apps | `.cursor-plugin/marketplace.json`、`.cursor-plugin/plugin.json`、`mcp.json` |
+| Cursor 2.6+ | `stdio` | MCP Apps | `.cursor-plugin/marketplace.json`、`.cursor-plugin/plugin.json`、`.mcp.json` |
 | Claude Code | `stdio` | 短期本地页 | `.claude-plugin/plugin.json`、`.mcp.claude.json` |
 | OpenCode | local MCP command | 短期本地页 | `adapters/opencode/opencode.json`、`.agents/skills` |
 | OpenCode V2 beta | local MCP command | 短期本地页 | `adapters/opencode/opencode-v2.json`、`.agents/skills` |
@@ -145,7 +146,7 @@ codex plugin add modellix-agent-canvas@modellix
 
 ### Cursor
 
-Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过根 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。Cursor 入口通过 `npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
+Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。Cursor 入口通过 `npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
 
 ### Claude Code
 
@@ -164,7 +165,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.16 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
+OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
 
 更完整的配置边界与验证状态见 [宿主兼容说明](host-compatibility.md)。
 
