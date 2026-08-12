@@ -1,6 +1,6 @@
 # Modellix Agent Canvas 安装指南
 
-Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服务。安装方式必须二选一：Codex、Cursor、Claude 用户只从宿主的 Git 或 Marketplace 入口安装一次，插件会在后台自动解析并缓存固定版本的公开 npm 运行包 [`@modellix/agent-canvas`](https://www.npmjs.com/package/@modellix/agent-canvas)；OpenCode 和通用 MCP 用户只添加一次 npm MCP。用户不需要再执行第二次 npm 或 CLI 安装命令。运行包包含完整生产依赖和精确版本的 `modellix-cli`；已有有效 CLI 凭证会被自动复用，否则首次使用只提示输入 Modellix API Key。
+Modellix Agent Canvas 是本地 `stdio` MCP 插件，不需要部署 Canvas 服务。安装方式必须二选一：Codex、Cursor、Claude 用户只从宿主的 Git 或 Marketplace 入口安装一次，插件会在后台自动解析并缓存固定版本的公开 npm 运行包 [`@modellix/agent-canvas`](https://www.npmjs.com/package/@modellix/agent-canvas)；OpenCode 和通用 MCP 用户只添加一次 npm MCP。用户不需要再执行第二次 npm 或 CLI 安装命令。运行包包含完整生产依赖和经过验证的 `modellix-cli` 回退版本；每次 MCP 重启后的第一次 CLI 调用会查询公开 npm `latest` 标签，原子缓存该精确版本并在当前进程固定使用，npm 不可访问或新版兼容性失败时使用随包回退。只有确需禁用检查时才设置 `MODELLIX_CLI_AUTO_UPDATE=0`。已有有效 CLI 凭证会被自动复用，否则首次使用只提示输入 Modellix API Key。
 
 任意宿主都可以用以下命令检查 Node.js、运行依赖、内置 Widget 和包版本：
 

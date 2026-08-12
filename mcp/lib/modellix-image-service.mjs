@@ -58,6 +58,8 @@ export class ModellixImageService {
       credentialSource: authentication.apiKeySource || null,
       cliVersion: compatibility.version,
       cliCompatible: compatibility.compatible,
+      cliSource: compatibility.source || "bundled",
+      cliUpdateWarning: compatibility.updateWarning || compatibility.warning || null,
       routerVersion: ROUTER_VERSION,
       approvedModels: Object.fromEntries(APPROVED_MODELS.map((slug) => [slug, available.has(slug)])),
       canvasMode: this.context.supportsMcpApps ? "mcp-app" : "local-web",

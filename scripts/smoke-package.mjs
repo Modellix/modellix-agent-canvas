@@ -100,7 +100,7 @@ try {
     if (!existsSync(path.join(packageRoot, required))) throw new Error(`Installed package is missing ${required}.`);
   }
   if (!existsSync(path.join(temporaryRoot, "node_modules", "modellix-cli", "bin", "run.js"))) {
-    throw new Error("Installed package is missing its exact modellix-cli runtime dependency.");
+    throw new Error("Installed package is missing its bundled modellix-cli fallback dependency.");
   }
   for (const requiredRuntimeFile of [
     "node_modules/ajv/package.json",

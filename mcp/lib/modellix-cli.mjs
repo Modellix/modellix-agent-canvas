@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import { PRODUCTION_API_ORIGIN } from "./modellix-contracts.mjs";
+import { resolveLatestCliEntry } from "./modellix-cli-updater.mjs";
 import { ModellixCanvasError, sanitizeMessage } from "./modellix-errors.mjs";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -18,17 +19,37 @@ export class ModellixCli {
     // submit, polling, and recovery cannot drift across credentials.
     this.profile = options.profile || process.env.MODELLIX_PROFILE || null;
     this.baseUrl = options.baseUrl || process.env.MODELLIX_BASE_URL || PRODUCTION_API_ORIGIN;
-    this.entry = resolveCliEntry(this.pluginRoot, options.entry);
+    this.bundledEntry = resolveCliEntry(this.pluginRoot, options.entry);
+    this.entry = this.bundledEntry;
+    this.entrySource = "bundled";
+    this.updateWarning = null;
+    this.resolveLatestEntry = options.resolveLatestEntry || resolveLatestCliEntry;
+    this.autoUpdate = options.autoUpdate !== false && !options.entry && !process.env.MODELLIX_CLI_ENTRY;
+    this.entryResolution = null;
   }
 
   async compatibility() {
+    await this.ensureEntry();
     if (!this.entry) return { available: false, compatible: false, version: null };
     try {
       const versionOutput = (await this.runRaw(["--version"], { timeoutMs: 10_000 })).stdout.trim();
       const version = versionOutput.match(/\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\b/u)?.[0] || null;
       await this.runRaw(["file", "upload", "--help"], { timeoutMs: 10_000 });
-      return { available: true, compatible: true, version };
+      return { available: true, compatible: true, version, source: this.entrySource, updateWarning: this.updateWarning };
     } catch (error) {
+      if (this.entry !== this.bundledEntry && this.bundledEntry) {
+        this.entry = this.bundledEntry;
+        this.entrySource = "bundled-fallback";
+        this.updateWarning = `The auto-updated modellix-cli was incompatible; using the bundled runtime. ${sanitizeMessage(error.message)}`;
+        try {
+          const versionOutput = (await this.runRaw(["--version"], { timeoutMs: 10_000 })).stdout.trim();
+          const version = versionOutput.match(/\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\b/u)?.[0] || null;
+          await this.runRaw(["file", "upload", "--help"], { timeoutMs: 10_000 });
+          return { available: true, compatible: true, version, source: this.entrySource, updateWarning: this.updateWarning };
+        } catch {
+          // Report the original compatibility failure below.
+        }
+      }
       return { available: true, compatible: false, version: null, warning: sanitizeMessage(error.message) };
     }
   }
@@ -131,6 +152,7 @@ export class ModellixCli {
   }
 
   async runRaw(args, options = {}) {
+    await this.ensureEntry();
     if (!this.entry) {
       throw new ModellixCanvasError("CLI_MISSING", "The installed modellix-cli entry point is missing.", {
         recoveryActions: ["Reinstall Modellix Agent Canvas and retry."],
@@ -149,6 +171,27 @@ export class ModellixCli {
     });
     if (result.code !== 0 && !options.allowFailure) throw classifyCliFailure(result);
     return result;
+  }
+
+  async ensureEntry() {
+    if (!this.autoUpdate) return this.entry;
+    if (!this.entryResolution) {
+      this.entryResolution = this.resolveLatestEntry({
+        pluginRoot: this.pluginRoot,
+        fallbackEntry: this.bundledEntry,
+      }).then((resolution) => {
+        if (resolution?.entry) this.entry = path.resolve(resolution.entry);
+        this.entrySource = resolution?.source || "bundled";
+        this.updateWarning = resolution?.updateWarning || null;
+        return this.entry;
+      }).catch((error) => {
+        this.entry = this.bundledEntry;
+        this.entrySource = "bundled";
+        this.updateWarning = `Could not refresh modellix-cli; using the bundled runtime. ${sanitizeMessage(error.message)}`;
+        return this.entry;
+      });
+    }
+    return this.entryResolution;
   }
 }
 

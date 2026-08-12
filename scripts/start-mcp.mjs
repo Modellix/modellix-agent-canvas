@@ -52,6 +52,11 @@ if (process.argv.includes("--doctor")) {
       complete: missing.length === 0,
       missing,
     },
+    modellixCli: {
+      bundledVersion: packageMetadata.dependencies?.["modellix-cli"] || null,
+      autoUpdate: !/^(?:0|false|off)$/iu.test(String(process.env.MODELLIX_CLI_AUTO_UPDATE || "").trim()),
+      policy: "npm-latest-on-first-use-with-bundled-fallback",
+    },
     widget: {
       bundled: existsSync(widgetPath),
     },

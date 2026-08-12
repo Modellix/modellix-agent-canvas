@@ -89,7 +89,7 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 - 可访问正式 API：`https://api.modellix.ai`
 - 一个可用的 Modellix API Key，可在 [Modellix 控制台](https://www.modellix.ai/console/api-key) 创建
 
-发布包会自动安装精确版本 `modellix-cli 0.0.8` 作为通用运行依赖，用户不需要全局安装 CLI。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
+发布包内置经过验证的 `modellix-cli 0.0.8` 作为离线回退，用户不需要全局安装 CLI。每个 MCP 进程第一次真正使用 CLI 时，Canvas 会查询公开 npm 的 `latest` 标签，把该精确版本原子安装到用户级 Modellix 缓存，并在当前进程内固定使用；npm 不可访问或新版兼容性检查失败时会自动回退到随包版本。确需固定随包版本的环境可以设置 `MODELLIX_CLI_AUTO_UPDATE=0`。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
 
 如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
 
@@ -291,6 +291,6 @@ npm audit --audit-level=moderate
 
 ## 开源协议
 
-项目自有代码按 [MIT License](../LICENSE) 发布。画布引擎使用 `@excalidraw/excalidraw 0.18.1`（MIT）；运行依赖 `modellix-cli 0.0.8` 同样按其 MIT 许可证分发。完整第三方声明见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 与 [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES)。
+项目自有代码按 [MIT License](../LICENSE) 发布。画布引擎使用 `@excalidraw/excalidraw 0.18.1`（MIT）；随包的 `modellix-cli 0.0.8` 回退版本及自动缓存的更新版本保留各自 npm 包中的许可证和元数据。完整第三方声明见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 与 [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES)。
 
 [English documentation](../README.md)

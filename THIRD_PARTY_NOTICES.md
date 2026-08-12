@@ -18,7 +18,7 @@ The verbatim license is included at [THIRD_PARTY_LICENSES/excalidraw-LICENSE.md]
 - License: MIT
 - Copyright: Copyright (c) 2026 Alen Hu
 
-The npm runtime dependency retains its own license file and package metadata.
+Version 0.0.8 is the tested bundled fallback. Canvas may cache a newer public npm `latest` release at runtime; every cached release retains its own license file and package metadata.
 
 ## Other npm dependencies
 

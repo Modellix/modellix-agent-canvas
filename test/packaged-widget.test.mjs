@@ -53,6 +53,14 @@ test("launchers never install dependencies or override the package root", async 
   assert.equal(combined.includes("MODELLIX_PLUGIN_ROOT"), false);
 });
 
+test("CLI auto-updates use an isolated public npm cache and ignore lifecycle scripts", async () => {
+  const updater = await source("mcp/lib/modellix-cli-updater.mjs");
+  assert.match(updater, /registry\.npmjs\.org/u);
+  assert.match(updater, /--ignore-scripts/u);
+  assert.match(updater, /npm_config_userconfig/u);
+  assert.match(updater, /bundled runtime/u);
+});
+
 test("the package exposes a host-independent runtime doctor", async () => {
   const launcher = await source("scripts/start-mcp.mjs");
   assert.match(launcher, /--doctor/u);

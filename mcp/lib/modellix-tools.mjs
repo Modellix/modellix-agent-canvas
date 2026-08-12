@@ -46,6 +46,8 @@ const statusOutputSchema = {
   credentialSource: z.string().nullable(),
   cliVersion: z.string().nullable(),
   cliCompatible: z.boolean(),
+  cliSource: z.enum(["bundled", "auto-updated", "cached-latest", "bundled-fallback"]),
+  cliUpdateWarning: z.string().nullable(),
   routerVersion: z.number().int().positive(),
   approvedModels: z.record(z.string(), z.boolean()),
   canvasMode: z.enum(["mcp-app", "local-web"]),

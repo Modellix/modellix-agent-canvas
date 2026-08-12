@@ -89,7 +89,7 @@ Export the current page at 1×, 2×, or 4× PNG, save SVG, download a presentati
 - Access to the production API at `https://api.modellix.ai`
 - A valid API Key from the [Modellix console](https://www.modellix.ai/console/api-key)
 
-Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The cached runtime includes the complete production dependency tree and exact `modellix-cli 0.0.8`. If the CLI already has a valid credential for the production API origin, Canvas reuses it and skips setup; otherwise the first-use prompt only asks for a Modellix API Key.
+Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The package includes the tested `modellix-cli 0.0.8` runtime as an offline fallback. On the first CLI use of each MCP process, Canvas checks the public npm `latest` tag, atomically caches that exact CLI version in the user-local Modellix cache, and pins it for the rest of the process. A registry or compatibility failure falls back to the bundled version, so a CLI release cannot make the installed Canvas disappear. Set `MODELLIX_CLI_AUTO_UPDATE=0` only when a deployment must remain on the bundled fallback. Existing valid CLI credentials are reused; otherwise the first-use prompt only asks for a Modellix API Key.
 
 Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
 
@@ -298,4 +298,4 @@ Host-specific commands are documented in [Upgrade and uninstall](docs/installati
 
 ## License
 
-Project-owned code is available under the [MIT License](LICENSE). The canvas engine uses `@excalidraw/excalidraw 0.18.1` under MIT; the `modellix-cli 0.0.8` runtime dependency retains its MIT license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+Project-owned code is available under the [MIT License](LICENSE). The canvas engine uses `@excalidraw/excalidraw 0.18.1` under MIT; the bundled `modellix-cli 0.0.8` fallback and an automatically cached newer CLI retain their own package license and metadata. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).

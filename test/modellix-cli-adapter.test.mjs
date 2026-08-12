@@ -12,6 +12,40 @@ test("CLI adapter resolves the installed dependency through Node package resolut
   assert.match(entry, /[\\/]node_modules[\\/]modellix-cli[\\/]bin[\\/]run\.js$/u);
 });
 
+test("CLI adapter pins one auto-updated entry for the MCP process", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "modellix-canvas-cli-test-"));
+  const packageRoot = path.join(root, "node_modules", "modellix-cli");
+  const bundledEntry = path.join(packageRoot, "bin", "run.js");
+  const updatedEntry = path.join(root, "updated-cli.mjs");
+  await writeFile(updatedEntry, `
+const args = process.argv.slice(2);
+if (args[0] === "--version") console.log("modellix-cli/0.0.9");
+else console.log("ok");
+`, "utf8");
+  await import("node:fs/promises").then(({ mkdir }) => mkdir(path.dirname(bundledEntry), { recursive: true }));
+  await writeFile(path.join(packageRoot, "package.json"), `${JSON.stringify({ name: "modellix-cli", version: "0.0.8" })}\n`);
+  await writeFile(bundledEntry, "console.log('modellix-cli/0.0.8');\n", "utf8");
+  let resolutions = 0;
+  try {
+    const cli = new ModellixCli({
+      pluginRoot: root,
+      workspaceRoot: root,
+      resolveLatestEntry: async () => {
+        resolutions += 1;
+        return { entry: updatedEntry, source: "auto-updated", version: "0.0.9", updateWarning: null };
+      },
+    });
+    const first = await cli.compatibility();
+    const second = await cli.compatibility();
+    assert.equal(first.version, "0.0.9");
+    assert.equal(first.source, "auto-updated");
+    assert.equal(second.version, "0.0.9");
+    assert.equal(resolutions, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI adapter inherits and then pins modellix-cli's current profile", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "modellix-canvas-cli-test-"));
   const entry = path.join(directory, "fake-cli.mjs");
