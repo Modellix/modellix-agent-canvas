@@ -11,7 +11,7 @@ let appInstance = null
 export function initializeMcpAppBridge() {
   if (window.parent === window || appInstance) return appInstance
   const app = new App(
-    { name: 'modellix-agent-canvas', version: '0.1.17' },
+    { name: 'modellix-agent-canvas', version: '0.1.18' },
     { availableDisplayModes: ['inline', 'fullscreen'] },
     { autoResize: true }
   )
@@ -44,12 +44,13 @@ function installCanvasApi(app) {
   window.modellixMcp = {
     callServerTool: async (request, options = {}) => {
       await app.ready
-      const { timeoutMs = DEFAULT_TIMEOUT_MS, ...requestOptions } = options
-      return withDeadline(
-        app.callServerTool(request, requestOptions),
-        timeoutMs,
-        'Server tool call timed out.'
-      )
+      const { timeoutMs = DEFAULT_TIMEOUT_MS, signal: callerSignal, ...requestOptions } = options
+      const controller = new AbortController()
+      const signal = callerSignal ? AbortSignal.any([callerSignal, controller.signal]) : controller.signal
+      const timer = window.setTimeout(() => controller.abort(new Error('Server tool call timed out.')), timeoutMs)
+      try {
+        return await app.callServerTool(request, { ...requestOptions, signal, timeout: timeoutMs })
+      } finally { window.clearTimeout(timer) }
     },
     requestDisplayMode: async mode => {
       await app.ready

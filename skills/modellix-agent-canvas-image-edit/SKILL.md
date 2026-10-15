@@ -14,7 +14,7 @@ Use the Modellix Canvas MCP task tools. Never pass arbitrary local paths or remo
 4. Call `prepare_modellix_image_task` with `mode: edit`, ordered `sourceObjectIds` and/or project `sourceAssetIds`, a non-empty prompt, requested size/fit/quality/background/fidelity, count from 1 through 4, active `pageId`, and the primary image as `targetObjectId`.
 5. Prepare is non-paying. Show the actual model, route reason, primary/reference count, effective specification, every warning, output count, unit/total estimate, currency, and expiry.
 6. After explicit confirmation, submit the unchanged intent with a fresh `operationId`, returned `routeFingerprint`, and `confirmedPaidSubmission: true`.
-7. Poll and immediately finalize successful tasks. Report partial failures independently. Never resubmit an unknown outcome; recover it from `list_modellix_canvas_tasks`.
+7. Wait with `wait_modellix_image_task` (default 30 seconds, maximum 45 per call) within an overall deadline, and immediately finalize successful tasks. Use `get_modellix_image_task` for an immediate snapshot. Report partial failures independently. Never resubmit an unknown outcome; recover it from `list_modellix_canvas_tasks`.
 8. Finalization must preserve, not move, hide, delete, or overwrite source images and annotations. Results go to the right in a stable grid unless the confirmed target is an AI image holder.
 
 For ordinary single-image editing, the default route is GPT Image 2 Edit. Transparent, strict-fidelity, and standard multi-reference requests use a compatible GPT Image 1.5 Edit route; multi-reference special-ratio or 2K/4K requests can route to Nano Banana Pro Edit. Treat the prepare response as authoritative.

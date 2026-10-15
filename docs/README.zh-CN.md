@@ -89,9 +89,9 @@ Modellix Agent Canvas 是一个完全在本机运行的通用 `stdio` MCP 画布
 - 可访问正式 API：`https://api.modellix.ai`
 - 一个可用的 Modellix API Key，可在 [Modellix 控制台](https://www.modellix.ai/console/api-key) 创建
 
-发布包内置经过验证的 `modellix-cli 0.0.8` 作为离线回退，用户不需要全局安装 CLI。每个 MCP 进程第一次真正使用 CLI 时，Canvas 会查询公开 npm 的 `latest` 标签，把该精确版本原子安装到用户级 Modellix 缓存，并在当前进程内固定使用；npm 不可访问或新版兼容性检查失败时会自动回退到随包版本。确需固定随包版本的环境可以设置 `MODELLIX_CLI_AUTO_UPDATE=0`。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
+发布包内置经过验证的 `modellix-cli 0.0.11` 作为离线回退，用户不需要全局安装 CLI。每个 MCP 进程第一次真正使用 CLI 时，Canvas 会查询公开 npm 的 `latest` 标签，把该精确版本原子安装到用户级 Modellix 缓存，并在当前进程内固定使用；npm 不可访问或新版兼容性检查失败时会自动回退到随包版本。确需固定随包版本的环境可以设置 `MODELLIX_CLI_AUTO_UPDATE=0`。若用户已在正式 API origin 的 CLI 默认 Profile 中配置有效凭证，Canvas 会直接复用，不再要求输入 Key。
 
-如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
+如需独立诊断已发布包，可在源码目录之外运行 `npm exec --yes --package=@modellix/agent-canvas@0.1.18 -- modellix-agent-canvas --doctor`，检查 Node.js 约束、生产依赖、内置 Widget 和实际包版本。该命令只是可选诊断，不是第二条安装路径。
 
 ## 最快使用方式
 
@@ -146,7 +146,7 @@ codex plugin add modellix-agent-canvas@modellix
 
 ### Cursor
 
-Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。Cursor 入口通过 `npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
+Cursor 2.6 及以上使用 `/add-plugin modellix-agent-canvas` 从 Marketplace 安装。个人或本地 Marketplace 安装在 **Customize → Plugins → + Add** 中选择仓库根目录；Cursor 读取 `.cursor-plugin/marketplace.json`，再从 `modellix` Marketplace 安装插件。Cursor Directory 是另一条独立渠道，通过 `.plugin/plugin.json` 与 `.mcp.json` 自动发现插件。两种入口都使用 Cursor 官方支持的 MCP Roots 绑定当前工作区，不依赖插件配置中无法可靠展开的 `${workspaceFolder}`。Cursor 入口通过 `npx -y --package @modellix/agent-canvas@0.1.18 modellix-agent-canvas` 显式启动固定运行包，避免全新 npm 缓存无法从包名推断可执行文件。模板不保存 Key；连接后在 Canvas 内的隔离输入框完成配置。
 
 ### Claude Code
 
@@ -165,7 +165,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
+OpenCode 稳定版把 `adapters/opencode/opencode.json` 中的 `mcp.modellix-agent-canvas` 合并到项目配置；OpenCode V2 beta 改用 `adapters/opencode/opencode-v2.json` 中的 `mcp.servers.modellix-agent-canvas`。两种配置都通过 `npx -y --package @modellix/agent-canvas@0.1.18 modellix-agent-canvas` 启动，并从当前工作区打开短期本地画布；无需预装全局 CLI 或运行第二次安装命令。
 
 更完整的配置边界与验证状态见 [宿主兼容说明](host-compatibility.md)。
 
@@ -198,7 +198,7 @@ Prompt 和输入图片只在用户确认付费任务后发送到 Modellix。预�
 1. `prepare_modellix_image_task` 解析有序参考图、选择模型并返回短期确认指纹。
 2. UI/Agent 展示实际模型、原因、规格、数量、限制和预计总费用。
 3. 用户明确确认后，`submit_modellix_image_task` 使用完全相同的意图和指纹提交。
-4. `get_modellix_image_task` 只查询已登记任务；`SUBMISSION_UNKNOWN` 只能查询恢复，不能自动重提。
+4. `wait_modellix_image_task` 对已登记任务默认等待 30 秒，每次最多 45 秒；`get_modellix_image_task` 用于立即查询。关闭页面会取消当前读取，不会重新提交任务；`SUBMISSION_UNKNOWN` 只能查询恢复，不能自动重提。
 5. 成功后 `finalize_modellix_image_task` 校验下载文件、写入内容寻址资产，并按占位符或原图右侧布局插入。
 
 ## MCP 工具
@@ -213,6 +213,7 @@ Prompt 和输入图片只在用户确认付费任务后发送到 Modellix。预�
 - `prepare_modellix_image_task`
 - `submit_modellix_image_task`
 - `get_modellix_image_task`
+- `wait_modellix_image_task`
 - `list_modellix_canvas_tasks`
 - `finalize_modellix_image_task`
 - `cleanup_modellix_canvas_uploads`（仅对账本登记的终态临时上传生效，并要求 `confirmCleanup: true`）
@@ -247,7 +248,7 @@ Prompt 和输入图片只在用户确认付费任务后发送到 Modellix。预�
 
 ## 本地网页安全
 
-回退页面只监听 `127.0.0.1` 的系统随机端口，并使用：
+回退页面只监听 `localhost` 的系统随机端口，并使用：
 
 - 一次性高熵打开令牌和短期 `HttpOnly; SameSite=Strict` 会话
 - `Host`、`Origin`、HTTP method、Content-Type 与 body 大小校验
@@ -291,6 +292,6 @@ npm audit --audit-level=moderate
 
 ## 开源协议
 
-项目自有代码按 [MIT License](../LICENSE) 发布。画布引擎使用 `@excalidraw/excalidraw 0.18.1`（MIT）；随包的 `modellix-cli 0.0.8` 回退版本及自动缓存的更新版本保留各自 npm 包中的许可证和元数据。完整第三方声明见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 与 [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES)。
+项目自有代码按 [MIT License](../LICENSE) 发布。画布引擎使用 `@excalidraw/excalidraw 0.18.1`（MIT）；随包的 `modellix-cli 0.0.11` 回退版本及自动缓存的更新版本保留各自 npm 包中的许可证和元数据。完整第三方声明见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 与 [THIRD_PARTY_LICENSES](../THIRD_PARTY_LICENSES)。
 
 [English documentation](../README.md)

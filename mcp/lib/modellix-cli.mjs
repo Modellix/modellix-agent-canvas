@@ -115,8 +115,32 @@ export class ModellixCli {
     return taskId;
   }
 
-  async getTask(taskId) {
-    return this.runJson(["task", "get", taskId, ...this.profileArgs(), "--json"]);
+  async getTask(taskId, options = {}) {
+    return this.runJson(["task", "get", taskId, ...this.profileArgs(), "--json"], options);
+  }
+
+  async waitTask(taskId, { timeoutSeconds = 30, signal } = {}) {
+    if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 45) {
+      throw new ModellixCanvasError("INPUT_INVALID", "Wait duration must be an integer from 1 to 45 seconds.");
+    }
+    // The optional immediate snapshot shares cancellation and the original budget.
+    const deadlineSignal = AbortSignal.timeout(timeoutSeconds * 1000 + 5000);
+    const waitSignal = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
+    const result = await this.runRaw(["task", "wait", taskId, ...this.profileArgs(), "--timeout", `${timeoutSeconds}s`, "--json"], {
+      allowFailure: true, timeoutMs: timeoutSeconds * 1000 + 5000, signal: waitSignal,
+    });
+    if (result.code !== 0 && result.code !== 1 && result.code !== 124) throw classifyCliFailure(result);
+    let payload;
+    try { payload = JSON.parse(result.stdout); } catch { throw classifyCliFailure(result); }
+    if (result.code === 124) {
+      const snapshot = payload.snapshots?.find((item) => item.taskId === taskId)?.response;
+      if (snapshot?.data?.task_id === taskId) return snapshot;
+      // The transport deadline can expire before the first wait response. Read
+      // one immediate snapshot rather than submitting again or inventing state.
+      return this.getTask(taskId, { signal: waitSignal });
+    }
+    if (payload?.data?.task_id !== taskId) throw classifyCliFailure(result);
+    return payload;
   }
 
   async downloadTask(taskId, outputDirectory) {
@@ -168,6 +192,7 @@ export class ModellixCli {
       },
       stdin: options.stdin,
       timeoutMs: options.timeoutMs || DEFAULT_TIMEOUT_MS,
+      signal: options.signal,
     });
     if (result.code !== 0 && !options.allowFailure) throw classifyCliFailure(result);
     return result;
@@ -216,6 +241,7 @@ function resolveInstalledCliEntry(pluginRoot) {
 
 function spawnCaptured(command, args, options) {
   return new Promise((resolve, reject) => {
+    options.signal?.throwIfAborted();
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: { ...process.env, ...options.env, FORCE_COLOR: "0", NO_COLOR: "1" },
@@ -227,6 +253,8 @@ function spawnCaptured(command, args, options) {
     const stderr = [];
     let bytes = 0;
     let settled = false;
+    const onAbort = () => child.kill();
+    options.signal?.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(() => child.kill(), options.timeoutMs);
     timer.unref();
     const capture = (target) => (chunk) => {
@@ -240,12 +268,15 @@ function spawnCaptured(command, args, options) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
       reject(error);
     });
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+      if (options.signal?.aborted) { reject(new DOMException("Task wait was canceled.", "AbortError")); return; }
       resolve({
         code: code ?? 1,
         signal,

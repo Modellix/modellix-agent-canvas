@@ -33,8 +33,10 @@ const localWeb = new ModellixLocalWebServer({ context, cli, taskStore, projectSt
 export default defineConfig({
   base: './',
   plugins: [stripUnusedExcalidrawFirebaseConfig(), react(), modellixDevelopmentApi()],
+  // The prebuilt self-contained Widget is an output, not a development entry.
+  optimizeDeps: { entries: ['index.html'] },
   server: {
-    host: '127.0.0.1',
+    host: 'localhost',
     headers: {
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff'
@@ -75,7 +77,7 @@ function modellixDevelopmentApi() {
     configureServer(server) {
       projectStore.initialize().catch(error => server.config.logger.error(error.stack || error.message))
       server.middlewares.use(async (request, response, next) => {
-        const url = new URL(request.url || '/', 'http://127.0.0.1')
+        const url = new URL(request.url || '/', 'http://localhost')
         if (!url.pathname.startsWith('/api/')) return next()
         try {
           if (url.pathname === '/api/project' && request.method === 'GET') return sendJson(response, 200, await projectStore.readProject({ hydrateFiles: true }))
@@ -87,6 +89,11 @@ function modellixDevelopmentApi() {
           if (url.pathname === '/api/modellix/prepare' && request.method === 'POST') return sendJson(response, 200, await service.prepare(await readJson(request)))
           if (url.pathname === '/api/modellix/submit' && request.method === 'POST') return sendJson(response, 200, await service.submit(await readJson(request)))
           if (url.pathname === '/api/modellix/task' && request.method === 'GET') return sendJson(response, 200, await service.getTask(url.searchParams.get('taskId')))
+          if (url.pathname === '/api/modellix/task/wait' && request.method === 'GET') {
+            const controller = new AbortController()
+            response.on('close', () => { if (!response.writableEnded) controller.abort() })
+            return sendJson(response, 200, await service.waitTask(url.searchParams.get('taskId'), { timeoutSeconds: Number(url.searchParams.get('timeout') || 30), signal: controller.signal }))
+          }
           if (url.pathname === '/api/modellix/tasks' && request.method === 'GET') return sendJson(response, 200, await taskStore.list({ limit: Number(url.searchParams.get('limit') || 100), cursor: Number(url.searchParams.get('cursor') || 0) }))
           if (url.pathname === '/api/modellix/finalize' && request.method === 'POST') {
             const body = await readJson(request)

@@ -9,6 +9,7 @@ const ENDPOINTS = {
   prepare: '/api/modellix/prepare',
   submit: '/api/modellix/submit',
   task: '/api/modellix/task',
+  waitTask: '/api/modellix/task/wait',
   tasks: '/api/modellix/tasks',
   finalize: '/api/modellix/finalize'
 }
@@ -23,6 +24,7 @@ const TOOLS = {
   prepare: 'prepare_modellix_image_task',
   submit: 'submit_modellix_image_task',
   task: 'get_modellix_image_task',
+  waitTask: 'wait_modellix_image_task',
   tasks: 'list_modellix_canvas_tasks',
   finalize: 'finalize_modellix_image_task'
 }
@@ -59,7 +61,7 @@ async function waitForPayload(signal) {
 
 async function callTool(name, args = {}, { signal, timeoutMs = 30000 } = {}) {
   await waitForPayload(signal)
-  const result = await window.modellixMcp.callServerTool({ name, arguments: args }, { timeoutMs })
+  const result = await window.modellixMcp.callServerTool({ name, arguments: args }, { timeoutMs, signal })
   if (result?.isError || result?.structuredContent?.ok === false) {
     const error = result?.structuredContent?.error
     const message = error?.message || result?.content?.find(item => item.type === 'text')?.text || `${name} failed`
@@ -149,6 +151,12 @@ export async function listImageTasks() {
   return hasMcpBridge()
     ? callTool(TOOLS.tasks, { limit: 100, cursor: 0 })
     : fetchJson(`${ENDPOINTS.tasks}?limit=100&cursor=0`)
+}
+
+export async function waitImageTask(taskId, { timeoutSeconds = 30, signal } = {}) {
+  return hasMcpBridge()
+    ? callTool(TOOLS.waitTask, { taskId, timeoutSeconds }, { signal, timeoutMs: timeoutSeconds * 1000 + 10000 })
+    : fetchJson(`${ENDPOINTS.waitTask}?taskId=${encodeURIComponent(taskId)}&timeout=${timeoutSeconds}`, { signal })
 }
 
 export async function finalizeImageTask(taskId) {

@@ -220,10 +220,20 @@ export class ModellixImageService {
   }
 
   async getTask(taskId) {
+    return this.observeTask(taskId);
+  }
+
+  async waitTask(taskId, options = {}) {
+    return this.observeTask(taskId, options);
+  }
+
+  async observeTask(taskId, waitOptions) {
     const normalizedId = normalizeTaskId(taskId);
     const stored = await this.taskStore.getTask(normalizedId);
     if (!stored) throw new ModellixCanvasError("INPUT_INVALID", "Task does not belong to this Canvas workspace.");
-    const normalized = normalizeRemoteTask(await this.cli.getTask(normalizedId), normalizedId);
+    const payload = waitOptions === undefined ? await this.cli.getTask(normalizedId)
+      : await this.cli.waitTask(normalizedId, waitOptions);
+    const normalized = normalizeRemoteTask(payload, normalizedId);
     await this.taskStore.updateOperation(stored.operation.operationId, (draft) => {
       const task = draft.tasks.find((entry) => entry.ordinal === stored.task.ordinal);
       if (!task) throw new ModellixCanvasError("INPUT_INVALID", "Task ordinal does not exist in the operation.");

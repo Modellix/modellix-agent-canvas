@@ -47,6 +47,7 @@ import {
   finalizeImageTask,
   getCanvasStatus,
   getImageTask,
+  waitImageTask,
   listImageTasks,
   loadProject,
   prepareImageTask,
@@ -889,6 +890,8 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
   const [progress, setProgress] = useState('')
   const [referenceOrder, setReferenceOrder] = useState([])
   const confirmationReturnFocusRef = useRef(null)
+  const waitControllerRef = useRef(null)
+  useEffect(() => () => waitControllerRef.current?.abort(), [])
   const scene = api ? { elements: api.getSceneElements(), appState: api.getAppState() } : { elements: [], appState: {} }
   const selection = selectedElements(scene.elements, scene.appState)
   const selectedReferenceElements = selectedImages(scene.elements, scene.appState)
@@ -960,6 +963,9 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
     setConfirmOpen(false)
     setBusy(true)
     setProgress(t('image.submitting'))
+    waitControllerRef.current?.abort()
+    const waitController = new AbortController()
+    waitControllerRef.current = waitController
     try {
       const operationId = `op_${crypto.randomUUID().replaceAll('-', '')}`
       const submitted = await submitImageTask({
@@ -971,7 +977,7 @@ function ImagePanel({ status, api, page, businessObject, onSetup, onRefreshStatu
       for (const task of submitted.tasks) {
         // Sequential polling keeps request volume predictable and preserves result order.
         // eslint-disable-next-line no-await-in-loop
-        await pollAndFinalize(task.taskId, setProgress, t)
+        await pollAndFinalize(task.taskId, setProgress, t, waitController.signal)
       }
       await onProjectReload()
       await onRefreshTasks()
@@ -1362,25 +1368,34 @@ function BrandIcon({ className = '' }) { return <svg className={className} width
 function LoadingScreen() { const { t } = useI18n(); return <div className="loading-screen"><BrandIcon className="brand-icon" /><LoaderCircle className="spin" /><strong>{t('loading.title')}</strong><span>{t('loading.detail')}</span></div> }
 function ErrorScreen({ message, onRetry }) { const { t } = useI18n(); return <div className="loading-screen error"><AlertTriangle size={32} /><strong>{t('error.canvasOpen')}</strong><span>{message}</span><button className="primary-button" onClick={onRetry}><RefreshCw size={16} />{t('error.reload')}</button></div> }
 
-async function pollAndFinalize(taskId, onProgress, t) {
-  const started = Date.now()
+async function pollAndFinalize(taskId, onProgress, t, callerSignal) {
+  const started = performance.now()
+  const signal = AbortSignal.any([callerSignal, AbortSignal.timeout(30 * 60 * 1000)])
   let retryDelay = 2500
-  while (Date.now() - started < 30 * 60 * 1000) {
+  while (performance.now() - started < 30 * 60 * 1000) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const task = await getImageTask(taskId)
+      signal.throwIfAborted()
+      const remainingSeconds = Math.max(1, Math.floor((30 * 60 * 1000 - (performance.now() - started)) / 1000))
+      const task = await waitImageTask(taskId, { timeoutSeconds: Math.min(30, remainingSeconds), signal })
       retryDelay = 2500
       onProgress(t('tasks.progress', { id: taskId.slice(0, 10), status: statusText(task.status, t) }))
       if (task.status === 'success') return finalizeImageTask(taskId)
       if (task.status === 'failed' || task.status === 'cancelled') throw new Error(t('tasks.explicitFailure', { id: taskId, status: statusText(task.status, t) }))
+      continue
     } catch (error) {
-      if (!error.retryable && !['RATE_LIMITED', 'DOWNLOAD_FAILED'].includes(error.code)) throw error
+      if (signal.aborted || (!error.retryable && !['RATE_LIMITED', 'DOWNLOAD_FAILED'].includes(error.code))) throw error
       retryDelay = Math.min(15000, Math.round(retryDelay * 1.7))
       onProgress(t('tasks.retry', { seconds: Math.ceil(retryDelay / 1000) }))
     }
     const jitter = Math.round(retryDelay * (0.85 + Math.random() * 0.3))
     // eslint-disable-next-line no-await-in-loop
-    await new Promise(resolve => window.setTimeout(resolve, jitter))
+    await new Promise((resolve, reject) => {
+      signal.throwIfAborted()
+      const onAbort = () => { window.clearTimeout(timer); reject(signal.reason) }
+      const timer = window.setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve() }, jitter)
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
   }
   throw new Error(t('tasks.timeout'))
 }

@@ -284,7 +284,7 @@ test("local fallback uses loopback, one-time bootstrap, strict cookie, Host and 
   });
   try {
     const openUrl = await server.createCanvasUrl();
-    assert.match(openUrl, /^http:\/\/127\.0\.0\.1:\d+\/open\//u);
+    assert.match(openUrl, /^http:\/\/localhost:\d+\/open\//u);
     const bootstrap = await fetch(openUrl, { redirect: "manual" });
     assert.equal(bootstrap.status, 303);
     const cookie = bootstrap.headers.get("set-cookie");

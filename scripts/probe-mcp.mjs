@@ -32,7 +32,7 @@ try {
   const required = [
     "get_canvas_project", "save_canvas_project", "get_canvas_context", "create_canvas_page", "rename_canvas_page", "delete_canvas_page", "save_canvas_asset",
     "get_modellix_canvas_status", "start_modellix_api_key_setup", "open_modellix_canvas", "prepare_modellix_image_task", "submit_modellix_image_task",
-    "get_modellix_image_task", "finalize_modellix_image_task", "cleanup_modellix_canvas_uploads", "list_modellix_canvas_tasks",
+    "get_modellix_image_task", "wait_modellix_image_task", "finalize_modellix_image_task", "cleanup_modellix_canvas_uploads", "list_modellix_canvas_tasks",
   ];
   for (const name of required) if (!names.has(name)) throw new Error(`Missing MCP tool: ${name}`);
   for (const tool of listed.tools) if (tool.outputSchema?.type !== "object") throw new Error(`${tool.name} must expose an object output schema.`);
@@ -68,7 +68,8 @@ try {
   const html = resource.contents?.[0]?.text || "";
   if (!html.includes("window.modellixMcp") || !html.includes("Modellix Agent Canvas")) throw new Error("Widget bridge or product shell is missing.");
   const firstScript = html.search(/<script\b/iu);
-  const shell = html.slice(0, firstScript < 0 ? html.length : firstScript);
+  const shell = html.slice(0, firstScript < 0 ? html.length : firstScript)
+    .replace('<link rel="icon" href="data:,">', "");
   if (/<script[^>]+src=|<link[^>]+href=/iu.test(shell)) throw new Error("Widget shell references an external build asset.");
   if (!/^\s*<script\s+type="module">\s*$/imu.test(html)) throw new Error("Widget scripts must retain module semantics.");
 
@@ -119,7 +120,7 @@ async function probeHostMode({ host, supportsMcpApps, expectedMode, required, bi
     }
     const opened = await hostClient.callTool({ name: "open_modellix_canvas", arguments: {} });
     if (opened.structuredContent?.mode !== expectedMode) throw new Error(`${host} returned ${opened.structuredContent?.mode || "no mode"}; expected ${expectedMode}.`);
-    if (expectedMode === "local-web" && !/^http:\/\/127\.0\.0\.1:\d+\//u.test(opened.structuredContent?.localUrl || "")) {
+    if (expectedMode === "local-web" && !/^http:\/\/localhost:\d+\//u.test(opened.structuredContent?.localUrl || "")) {
       throw new Error(`${host} did not return a loopback fallback URL.`);
     }
     if (expectedMode === "mcp-app" && opened._meta?.["openai/outputTemplate"] !== MODELLIX_WIDGET_URI) {

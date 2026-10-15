@@ -18,7 +18,7 @@ if (pkg.devDependencies?.["@excalidraw/excalidraw"] !== "0.18.1") throw new Erro
 if (lock.packages?.["node_modules/@excalidraw/excalidraw"]?.version !== "0.18.1") throw new Error("package-lock.json must resolve Excalidraw 0.18.1.");
 if (lock.packages?.["node_modules/@excalidraw/excalidraw"]?.license !== "MIT") throw new Error("The resolved Excalidraw package must declare MIT.");
 if (sha256(license) !== expectedLicenseHash) throw new Error("The reviewed Excalidraw MIT license is missing or changed.");
-if (!notice.includes("@excalidraw/excalidraw` 0.18.1") || !notice.includes("modellix-cli` 0.0.8")) throw new Error("Third-party notices must disclose Excalidraw and the CLI runtime dependency.");
+if (!notice.includes("@excalidraw/excalidraw` 0.18.1") || !notice.includes(`modellix-cli\` ${pkg.dependencies["modellix-cli"]}`)) throw new Error("Third-party notices must disclose Excalidraw and the CLI runtime dependency.");
 const allowedLicenses = new Set(["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "BlueOak-1.0.0", "CC0-1.0", "CC-BY-4.0", "Unlicense", "(MIT AND Zlib)", "(MIT OR CC0-1.0)", "(MPL-2.0 OR Apache-2.0)"]);
 const reviewedLegacyDeclarations = new Set(["node_modules/fuzzy", "node_modules/khroma"]);
 for (const [packagePath, metadata] of Object.entries(lock.packages || {})) {

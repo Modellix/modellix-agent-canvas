@@ -89,9 +89,9 @@ Export the current page at 1×, 2×, or 4× PNG, save SVG, download a presentati
 - Access to the production API at `https://api.modellix.ai`
 - A valid API Key from the [Modellix console](https://www.modellix.ai/console/api-key)
 
-Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The package includes the tested `modellix-cli 0.0.8` runtime as an offline fallback. On the first CLI use of each MCP process, Canvas checks the public npm `latest` tag, atomically caches that exact CLI version in the user-local Modellix cache, and pins it for the rest of the process. A registry or compatibility failure falls back to the bundled version, so a CLI release cannot make the installed Canvas disappear. Set `MODELLIX_CLI_AUTO_UPDATE=0` only when a deployment must remain on the bundled fallback. Existing valid CLI credentials are reused; otherwise the first-use prompt only asks for a Modellix API Key.
+Choose one installation path only. Codex, Cursor, and Claude users install once from the host's Git or Marketplace entry; the plugin loads its manifest and Skills and automatically resolves the pinned npm runtime in the background. OpenCode and generic MCP users add the npm-backed MCP once. Users never run a second npm or CLI installation command. The package includes the tested `modellix-cli 0.0.11` runtime as an offline fallback. On the first CLI use of each MCP process, Canvas checks the public npm `latest` tag, atomically caches that exact CLI version in the user-local Modellix cache, and pins it for the rest of the process. A registry or compatibility failure falls back to the bundled version, so a CLI release cannot make the installed Canvas disappear. Set `MODELLIX_CLI_AUTO_UPDATE=0` only when a deployment must remain on the bundled fallback. Existing valid CLI credentials are reused; otherwise the first-use prompt only asks for a Modellix API Key.
 
-Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.17 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
+Optionally run `npm exec --yes --package=@modellix/agent-canvas@0.1.18 -- modellix-agent-canvas --doctor` from outside the source checkout to verify the published package's Node.js requirement, production dependencies, bundled Widget, and active version. This is a diagnostic, not a second installation path.
 
 ## Quick start
 
@@ -160,7 +160,7 @@ Use the adapter intended for the target host. Root `plugin.json` and `mcp.json` 
 The Cursor-specific `.mcp.json` runs:
 
 ```text
-npx -y --package @modellix/agent-canvas@0.1.17 modellix-agent-canvas --host cursor --supports-mcp-apps true
+npx -y --package @modellix/agent-canvas@0.1.18 modellix-agent-canvas --host cursor --supports-mcp-apps true
 ```
 
 The template does not contain an API Key. Cursor supplies the active workspace through MCP Roots; the template intentionally avoids unportable `${workspaceFolder}` interpolation.
@@ -173,7 +173,7 @@ claude mcp add --transport stdio modellix-agent-canvas -- node /absolute/path/mo
 
 ### OpenCode
 
-For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.17` from the active workspace and use the local page fallback.
+For the stable OpenCode release, merge `mcp.modellix-agent-canvas` from `adapters/opencode/opencode.json` into the project configuration. OpenCode V2 beta users should instead merge `mcp.servers.modellix-agent-canvas` from `adapters/opencode/opencode-v2.json`. Both adapters start `@modellix/agent-canvas@0.1.18` from the active workspace and use the local page fallback.
 
 ## API Key and privacy
 
@@ -204,7 +204,7 @@ The paid workflow is:
 1. `prepare_modellix_image_task` resolves ordered references, selects a model, and returns a short-lived confirmation fingerprint.
 2. The UI or agent displays the actual model, routing reason, effective specification, quantity, warnings, and estimated total cost.
 3. After explicit user approval, `submit_modellix_image_task` submits the unchanged intent with the same fingerprint.
-4. `get_modellix_image_task` polls only registered tasks. `SUBMISSION_UNKNOWN` is query-only and must never trigger an automatic resubmission.
+4. `wait_modellix_image_task` waits on registered tasks for 30 seconds by default (maximum 45); `get_modellix_image_task` returns an immediate snapshot. Closing the page cancels the active read without resubmitting the task. `SUBMISSION_UNKNOWN` is query-only and must never trigger an automatic resubmission.
 5. `finalize_modellix_image_task` validates downloads, writes content-addressed assets, and places results at the placeholder or beside the source.
 
 ## MCP tools
@@ -219,6 +219,7 @@ The agent-facing workflow uses:
 - `prepare_modellix_image_task`
 - `submit_modellix_image_task`
 - `get_modellix_image_task`
+- `wait_modellix_image_task`
 - `list_modellix_canvas_tasks`
 - `finalize_modellix_image_task`
 - `cleanup_modellix_canvas_uploads`, which requires `confirmCleanup: true` and affects only terminal temporary uploads recorded in the ledger
@@ -253,7 +254,7 @@ Each bound workspace stores data under:
 
 ## Loopback and HTML security
 
-The fallback page listens only on `127.0.0.1` with an ephemeral system-assigned port and enforces:
+The fallback page listens only on `localhost` with an ephemeral system-assigned port and enforces:
 
 - A one-time high-entropy open token and short-lived `HttpOnly; SameSite=Strict` session
 - Host, Origin, HTTP method, Content-Type, and request-size validation
@@ -298,4 +299,4 @@ Host-specific commands are documented in [Upgrade and uninstall](docs/installati
 
 ## License
 
-Project-owned code is available under the [MIT License](LICENSE). The canvas engine uses `@excalidraw/excalidraw 0.18.1` under MIT; the bundled `modellix-cli 0.0.8` fallback and an automatically cached newer CLI retain their own package license and metadata. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+Project-owned code is available under the [MIT License](LICENSE). The canvas engine uses `@excalidraw/excalidraw 0.18.1` under MIT; the bundled `modellix-cli 0.0.11` fallback and an automatically cached newer CLI retain their own package license and metadata. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).

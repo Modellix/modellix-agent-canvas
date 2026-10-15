@@ -13,12 +13,12 @@ The verbatim license is included at [THIRD_PARTY_LICENSES/excalidraw-LICENSE.md]
 
 ## modellix-cli runtime
 
-- Package: `modellix-cli` 0.0.8
+- Package: `modellix-cli` 0.0.11
 - Project: https://github.com/Modellix/modellix-cli
 - License: MIT
 - Copyright: Copyright (c) 2026 Alen Hu
 
-Version 0.0.8 is the tested bundled fallback. Canvas may cache a newer public npm `latest` release at runtime; every cached release retains its own license file and package metadata.
+Version 0.0.11 is the tested bundled fallback. Canvas may cache a newer public npm `latest` release at runtime; every cached release retains its own license file and package metadata.
 
 ## Other npm dependencies
 

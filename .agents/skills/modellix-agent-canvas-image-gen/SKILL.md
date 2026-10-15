@@ -20,7 +20,7 @@ Use the Modellix Canvas MCP task tools. Do not choose a model slug; describe the
    - an optional image-holder `targetObjectId`
 4. Prepare is non-paying. Show the actual model display name, route reason, requested and effective specifications, every warning, output count, unit/total estimate, currency, and confirmation expiry.
 5. Obtain explicit user confirmation. Then submit the exact same intent with a fresh stable `operationId`, returned `routeFingerprint`, and `confirmedPaidSubmission: true`.
-6. Poll each returned task with `get_modellix_image_task`. Finalize every successful task immediately with `finalize_modellix_image_task` so the image is stored in the project.
+6. Wait for each returned task with `wait_modellix_image_task` (default 30 seconds, maximum 45 per call). Continue only for a known nonterminal task within the overall deadline. Use `get_modellix_image_task` for an immediate snapshot. Finalize every successful task immediately with `finalize_modellix_image_task` so the image is stored in the project. Cancellation stops waiting; it never resubmits or cancels the paid task.
 7. Never retry `SUBMISSION_UNKNOWN`. Use `list_modellix_canvas_tasks` and query the recorded task IDs.
 
 Finalization replaces a selected AI image holder for the first result. Without a holder, it keeps existing content and places results in a stable grid near the confirmed viewport position.

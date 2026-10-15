@@ -216,6 +216,14 @@ export function registerModellixTools(server, options) {
     annotations: externalReadOnlyAnnotations,
   }, (input) => service.getTask(input.taskId));
 
+  register(server, "wait_modellix_image_task", {
+    title: "Wait For Modellix Image Task",
+    description: "Wait up to 45 seconds for an existing workspace task. A normal deadline returns its current status; continue waiting with that ID rather than submitting again.",
+    inputSchema: { taskId: id, timeoutSeconds: z.number().int().min(1).max(45).default(30) },
+    outputSchema: { ok: z.boolean(), taskId: z.string(), status: z.enum(["pending", "processing", "success", "cancelled", "failed"]), resourceCount: z.number().int().nonnegative(), resultExpiresAt: z.string().nullable() },
+    annotations: externalReadOnlyAnnotations,
+  }, (input, extra) => service.waitTask(input.taskId, { timeoutSeconds: input.timeoutSeconds, signal: extra.signal }));
+
   register(server, "finalize_modellix_image_task", {
     title: "Finalize Modellix Image Task",
     description: "Download a successful task into controlled staging, insert or replace Canvas objects, persist project assets, and clean temporary uploads.",
@@ -242,9 +250,9 @@ export function registerModellixTools(server, options) {
 }
 
 function register(server, name, definition, handler) {
-  server.registerTool(name, { ...definition, outputSchema: withErrorOutputSchema(definition.outputSchema) }, async (input = {}) => {
+  server.registerTool(name, { ...definition, outputSchema: withErrorOutputSchema(definition.outputSchema) }, async (input = {}, extra = {}) => {
     try {
-      return successResult(`${definition.title} completed.`, await handler(input));
+      return successResult(`${definition.title} completed.`, await handler(input, extra));
     } catch (error) {
       return errorToolResult(error);
     }

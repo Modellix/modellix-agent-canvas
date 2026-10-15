@@ -59,9 +59,9 @@ export class ModellixLocalWebServer {
     this.server.on("clientError", (_error, socket) => socket.end("HTTP/1.1 400 Bad Request\r\n\r\n"));
     await new Promise((resolve, reject) => {
       this.server.once("error", reject);
-      this.server.listen(0, "127.0.0.1", resolve);
+      this.server.listen(0, "localhost", resolve);
     });
-    this.origin = `http://127.0.0.1:${this.server.address().port}`;
+    this.origin = `http://localhost:${this.server.address().port}`;
     this.server.unref();
   }
 
@@ -83,6 +83,11 @@ export class ModellixLocalWebServer {
     if (url.pathname === "/api/modellix/prepare" && request.method === "POST") return this.sendJson(response, 200, await this.service.prepare(await readJson(request)));
     if (url.pathname === "/api/modellix/submit" && request.method === "POST") return this.sendJson(response, 200, await this.service.submit(await readJson(request)));
     if (url.pathname === "/api/modellix/task" && request.method === "GET") return this.sendJson(response, 200, await this.service.getTask(url.searchParams.get("taskId")));
+    if (url.pathname === "/api/modellix/task/wait" && request.method === "GET") {
+      const controller = new AbortController();
+      response.on("close", () => { if (!response.writableEnded) controller.abort(); });
+      return this.sendJson(response, 200, await this.service.waitTask(url.searchParams.get("taskId"), { timeoutSeconds: Number(url.searchParams.get("timeout") || 30), signal: controller.signal }));
+    }
     if (url.pathname === "/api/modellix/finalize" && request.method === "POST") {
       const body = await readJson(request);
       return this.sendJson(response, 200, await this.service.finalize(body.taskId, body));

@@ -4,7 +4,7 @@
     "modellix-agent-canvas": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.17", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false"]
+      "args": ["-y", "--package", "@modellix/agent-canvas@0.1.18", "modellix-agent-canvas", "--host", "generic", "--supports-mcp-apps", "false"]
     }
   }
 }

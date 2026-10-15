@@ -7,12 +7,12 @@
     "url": "https://github.com/Modellix/modellix-agent-canvas",
     "source": "github"
   },
-  "version": "0.1.17",
+  "version": "0.1.18",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@modellix/agent-canvas",
-      "version": "0.1.17",
+      "version": "0.1.18",
       "transport": {
         "type": "stdio"
       }

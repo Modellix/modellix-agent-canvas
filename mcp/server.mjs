@@ -41,7 +41,7 @@ const server = new McpServer(
       "Modellix Agent Canvas is a workspace-bound local stdio MCP.",
       "Use open_modellix_canvas to open the app and get_canvas_context to inspect its active selection.",
       "Every paid image request must call prepare_modellix_image_task, show the returned model/specification/cost disclosure, receive explicit confirmation, and only then call submit_modellix_image_task.",
-      "Use get_modellix_image_task and finalize_modellix_image_task to recover and persist results; never blindly resubmit submission_unknown tasks.",
+      "Use wait_modellix_image_task for bounded waiting and get_modellix_image_task for an immediate snapshot; finalize every successful task with finalize_modellix_image_task. Never blindly resubmit submission_unknown tasks.",
     ].join(" "),
   },
 );
@@ -64,7 +64,7 @@ registerWidgetResource(server, {
   prefersBorder: false,
   connectDomains: [],
   resourceDomains: ["data:", "blob:"],
-  frameDomains: ["data:", "blob:", "http://127.0.0.1:*"],
+  frameDomains: ["data:", "blob:", "http://localhost:*"],
 });
 
 registerModellixTools(server, { context, service, taskStore, localWeb, projectStore });

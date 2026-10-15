@@ -44,6 +44,8 @@ async function createSingleFileWidget(directory) {
   const leftovers = emittedAssets.filter((name) => !consumedAssets.has(`assets/${name}`));
   if (leftovers.length > 0) throw new Error(`Widget build emitted non-inlined assets: ${leftovers.join(", ")}`);
   if (/<(?:script|link)\b[^>]*(?:src|href)=/iu.test(html)) throw new Error("Widget HTML still references an external build asset.");
+  // A standalone fallback tab otherwise implicitly requests /favicon.ico.
+  html = html.replace("</head>", '<link rel="icon" href="data:,">\n</head>');
   const inlineScripts = scripts.join("\n");
   return html.includes("</body>") ? html.replace("</body>", () => `${inlineScripts}\n</body>`) : `${html}\n${inlineScripts}`;
 }

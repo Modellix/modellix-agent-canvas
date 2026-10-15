@@ -1,6 +1,6 @@
 {
   "name": "@modellix/agent-canvas",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "mcpName": "io.github.Modellix/agent-canvas",
   "description": "A general-purpose local stdio MCP canvas for Modellix image generation, editing, paid-task recovery, and project-local visual work.",
   "author": {
@@ -84,10 +84,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.4",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "modellix-cli": "0.0.8",
+    "modellix-cli": "0.0.11",
     "proper-lockfile": "4.1.2",
     "zod": "^4.4.3"
   },
